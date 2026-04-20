@@ -11,7 +11,7 @@
 
 
 ## Two tutorials:
-### First Guide:
+### First Tutorial:
 【OpenCV Python 图像处理 30分钟 入门课程】 https://www.bilibili.com/video/BV1BT4y1Z7WS/?share_source=copy_web&vd_source=6af3a528ba0d3f743eaf6350d0674853
-### Second Guide:
+### Second Tutorial:
 【3h精通Opencv-Python】 https://www.bilibili.com/video/BV16K411W7x9/?share_source=copy_web&vd_source=6af3a528ba0d3f743eaf6350d0674853
