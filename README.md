@@ -1,8 +1,8 @@
 # Abstract
 
-* This is a repo for Digital Image Processing *
-* All code writen by Python *
-* Use OpenCV *
+*This is a repo for Digital Image Processing*
+*All code writen by Python*
+*Use OpenCV*
 
 Two guide:
 
