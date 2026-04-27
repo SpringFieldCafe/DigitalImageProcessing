@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from Modal_Stack import stackImages
 
 def empty(x):
     pass
@@ -36,8 +37,6 @@ while 1:
     mask=cv2.inRange(imgHSV,lower,upper)
     imgRes=cv2.bitwise_and(img,img,mask=mask)
 
-    cv2.imshow("original", img)
-    cv2.imshow("HSV", imgHSV)
-    cv2.imshow("mask",mask)
-    cv2.imshow("res",imgRes)
+    imgStack=stackImages(0.8,[[img,imgHSV],[imgRes,mask]])
+    cv2.imshow('s',imgStack)
     cv2.waitKey(1)
