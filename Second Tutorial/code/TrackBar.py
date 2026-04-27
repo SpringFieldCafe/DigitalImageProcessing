@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from Modal_Stack import stackImages as si
 
 def empty(x):
     pass
@@ -23,11 +24,11 @@ path = "Second Tutorial\\resources\\lambo.PNG"
 cv2.namedWindow("TrackBars")
 cv2.resizeWindow("TrackBars",640,240)
 cv2.createTrackbar("Hue Min","TrackBars",0,179,empty)
-cv2.createTrackbar("Hue Max","TrackBars",0,179,empty)
-cv2.createTrackbar("Sat Min","TrackBars",0,255,empty)
-cv2.createTrackbar("Sat Max","TrackBars",0,255,empty)
-cv2.createTrackbar("Val Min","TrackBars",0,255,empty)
-cv2.createTrackbar("Val Max","TrackBars",0,255,empty)
+cv2.createTrackbar("Hue Max","TrackBars",19,179,empty)
+cv2.createTrackbar("Sat Min","TrackBars",110,255,empty)
+cv2.createTrackbar("Sat Max","TrackBars",240,255,empty)
+cv2.createTrackbar("Val Min","TrackBars",153,255,empty)
+cv2.createTrackbar("Val Max","TrackBars",255,255,empty)
 
 while 1:
     img = cv2.imread(path)
@@ -42,11 +43,11 @@ while 1:
     lower=np.array([h_min,s_min,v_min])
     upper=np.array([h_max,s_max,v_max])
     mask=cv2.inRange(imgHSV,lower,upper)
-
-    cv2.imshow("original", img)
-    cv2.imshow("HSV", imgHSV)
-    cv2.imshow("mask",mask)
+    imgRes=cv2.bitwise_and(img,img,mask=mask)
+    Is=si(0.6,[[img,imgHSV],[mask,imgRes]])
+    cv2.imshow("s",Is)
     cv2.waitKey(1)
+
 
 
 
