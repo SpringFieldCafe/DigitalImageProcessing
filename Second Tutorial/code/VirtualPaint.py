@@ -8,7 +8,8 @@ cap.set(3,framewidth)
 cap.set(4,frameheight)
 cap.set(10,150)
 
-myColors=[[65,89,72,86,202,217]]
+# myColors=[[65,89,72,86,202,217]]
+myColors=[[50,40,195,80,89,221]]
 myColorValues=[[0,204,0]]
 myPoints=[]
 
