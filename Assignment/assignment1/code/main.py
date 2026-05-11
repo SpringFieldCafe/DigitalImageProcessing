@@ -1,120 +1,102 @@
-import cv2
-import numpy as np
-from pathlib import Path
+import cv2  # 导入OpenCV库用于图像读取、显示和处理
+import numpy as np  # 导入NumPy库用于数组和矩阵运算
+from pathlib import Path  # 导入Path用于拼接和管理文件路径
 
-path_main=Path.cwd()/"Assignment"/"assignment1"
+path_main=Path.cwd()/"Assignment"/"assignment1"  # 设置assignment1文件夹的主路径
 
 ##########################
 # 1
-img=cv2.imread(str(path_main/"resource"/"PostgreSQL.jpg"))
-print(img)
+img=cv2.imread(str(path_main/"resource"/"PostgreSQL.jpg"))  # 读取resource文件夹中的PostgreSQL图像
+print(img)  # 输出读取到的图像矩阵数据
 ##########################
 
 
 ################################
 #2
-cv2.imshow("img",img)
-cv2.waitKey()
+cv2.imshow("img",img)  # 在窗口中显示读取到的图像
+cv2.waitKey()  # 等待键盘按键后继续执行
 ###################################
 
 #####################################
-# #3
-# cv2.imwrite("F:\\pics\\Postgre.jpg")
-# ########################################
-
-# #####################################
-# #4
-# src_dir = Path("F:/pics")         # 设置原图片所在文件夹，这里是 F 盘下的 pics 文件夹
-
-# dst_dir = src_dir / "ppics"       # 设置保存图片的目标文件夹，即 F:/pics/ppics
-
-# dst_dir.mkdir(exist_ok=True)      # 如果 ppics 文件夹不存在，则创建；如果已存在，则不报错
-
-# img_suffix = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"}  
-# # 定义允许读取的图片后缀类型，避免读取到非图片文件
-
-# for img_path in src_dir.iterdir():    
-#     # 遍历 F:/pics 文件夹下的所有文件和文件夹
-
-#     if not img_path.is_file():        
-#         # 如果当前路径不是文件，比如是文件夹，则跳过
-
-#         continue                      
-#         # 跳过本次循环，继续检查下一个路径
-
-#     if img_path.suffix.lower() not in img_suffix:  
-#         # 判断当前文件的后缀是否属于图片格式，lower() 用于统一转换成小写
-
-#         continue                      
-#         # 如果不是图片文件，则跳过
-
-#     img = cv2.imread(str(img_path))   
-#     # 使用 cv2.imread() 读取图片，Path 对象需要转换成字符串
-
-#     if img is None:                   
-#         # 如果图片读取失败，img 会是 None
-
-#         print(f"图片读取失败：{img_path}")  
-#         # 输出读取失败的图片路径，方便检查问题
-
-#         continue                      
-#         # 跳过读取失败的图片
-
-#     cv2.imshow("image", img)          
-#     # 使用 cv2.imshow() 显示读取到的图片
-
-#     save_path = dst_dir / img_path.name  
-#     # 设置保存路径，文件名与原图片文件名保持一致
-
-#     cv2.imwrite(str(save_path), img)  
-#     # 使用 cv2.imwrite() 将图片保存到 bpics 文件夹中
-#########################################################
+#3
+save_dir=Path("F:\\pics")  # 设置图像保存目录为F盘pics文件夹
+save_dir.mkdir(parents=True,exist_ok=True)  # 如果F盘pics文件夹不存在，则自动创建
+save_path=save_dir/"Postgre.jpg"  # 设置图像保存路径和保存后的文件名
+cv2.imwrite(str(save_path),img)  # 使用cv2.imwrite()函数将读取到的图像保存到F盘pics文件夹下
+########################################
+#####################################
+#4
+src_dir=Path("F:\\pics")  # 设置原图片所在文件夹为F盘pics文件夹
+dst_dir=src_dir/"ppics"  # 设置保存图片的目标文件夹为F盘pics文件夹下的ppics子目录
+dst_dir.mkdir(parents=True,exist_ok=True)  # 如果ppics子目录不存在，则自动创建
+img_suffix={".jpg",".jpeg",".png",".bmp",".tif",".tiff"}  # 定义允许读取的图片文件后缀
+for img_path in src_dir.iterdir():  # 遍历F盘pics文件夹下的所有文件和文件夹
+    if not img_path.is_file():  # 判断当前路径是否不是文件
+        continue  # 如果不是文件，则跳过本次循环
+    if img_path.suffix.lower() not in img_suffix:  # 判断当前文件后缀是否不属于图片格式
+        continue  # 如果不是图片文件，则跳过本次循环
+    img_temp=cv2.imread(str(img_path))  # 使用cv2.imread()函数读取当前图片
+    if img_temp is None:  # 判断当前图片是否读取失败
+        print(f"图片读取失败：{img_path}")  # 输出读取失败的图片路径
+        continue  # 跳过读取失败的图片
+    cv2.imshow("image",img_temp)  # 使用cv2.imshow()函数显示当前读取到的图片
+    save_path=dst_dir/img_path.name  # 设置当前图片保存到ppics子目录中的路径
+    cv2.imwrite(str(save_path),img_temp)  # 使用cv2.imwrite()函数将当前图片保存到ppics子目录中
+    cv2.waitKey(0)  # 等待键盘按键后继续处理下一张图片
+cv2.destroyAllWindows()  # 关闭所有OpenCV显示窗口
+########################################
 
 ######################################################
 #5
-print(img.shape[0:2])
-print(img.shape[2])
-print(img.dtype)
+h, w = img.shape[:2]  # 获取图像的高度和宽度
+channels = img.shape[2]  # 获取图像的通道数
+pixel_count = h * w  # 计算图像的像素数
+dtype = img.dtype  # 获取图像的数据类型
+print("图像高度：", h)  # 输出图像高度
+print("图像宽度：", w)  # 输出图像宽度
+print("图像像素数：", pixel_count)  # 输出图像像素总数
+print("图像通道数：", channels)  # 输出图像通道数
+print("图像数据类型：", dtype)  # 输出图像数据类型
 #########################################################
 
 
 #######################################################
 #6
-imgScale=cv2.resize(img,(200,200))
-imgCv2Add=cv2.add(imgScale,imgScale)
-cv2.imshow('c2',imgCv2Add)
-imgNpAdd=np.array(imgScale+imgScale)
-cv2.imshow('np',imgNpAdd)
-cv2.waitKey()
+imgScale=cv2.resize(img,(200,200))  # 将原图缩放到200×200大小
+imgCv2Add=cv2.add(imgScale,imgScale)  # 使用OpenCV加法对图像进行相加
+cv2.imshow('c2',imgCv2Add)  # 显示OpenCV加法得到的图像
+imgNpAdd=np.array(imgScale+imgScale)  # 使用NumPy数组加法对图像进行相加
+cv2.imshow('np',imgNpAdd)  # 显示NumPy加法得到的图像
+cv2.waitKey()  # 等待键盘按键后继续执行
 
-imgCv2diff=cv2.subtract(imgCv2Add,imgScale)
-imgNpdiff=np.array(imgScale-imgNpAdd)
-cv2.imshow('c',imgCv2diff)
-cv2.imshow('n',imgNpdiff)
-cv2.waitKey()
+imgCv2diff=cv2.subtract(imgCv2Add,imgScale)  # 使用OpenCV减法计算图像差值
+imgNpdiff=np.array(imgScale-imgNpAdd)  # 使用NumPy减法计算图像差值
+cv2.imshow('c',imgCv2diff)  # 显示OpenCV减法结果
+cv2.imshow('n',imgNpdiff)  # 显示NumPy减法结果
+cv2.waitKey()  # 等待键盘按键后继续执行
 
-imgGray=cv2.cvtColor(imgScale,cv2.COLOR_BGR2GRAY)
-imgCv2mp=cv2.multiply(imgScale,imgScale)
-imgNpdot=np.dot(imgGray,imgGray)
-cv2.imshow('c',imgCv2mp)
-cv2.imshow('dot',imgNpdot)
-cv2.waitKey()
+imgGray=cv2.cvtColor(imgScale,cv2.COLOR_BGR2GRAY)  # 将缩放后的图像转换为灰度图
+imgCv2mp=cv2.multiply(imgScale,imgScale)  # 使用OpenCV乘法对图像进行逐像素相乘
+imgNpdot=np.dot(imgGray,imgGray)  # 使用NumPy点乘计算灰度图矩阵乘积
+cv2.imshow('c',imgCv2mp)  # 显示OpenCV乘法结果
+cv2.imshow('dot',imgNpdot)  # 显示NumPy点乘结果
+cv2.waitKey()  # 等待键盘按键后继续执行
 
 den = (imgScale * 0.01).astype(np.uint8)   # 构造除数图像
 den[den == 0] = 1                         # 避免除以 0
 imgdivide = cv2.divide(imgScale, den)     # 使用 cv2.divide() 做图像除法
-cv2.imshow("div", imgdivide)
-cv2.waitKey(0)
+cv2.imshow("div", imgdivide)  # 显示图像除法结果
+cv2.waitKey(0)  # 等待键盘按键后继续执行
 
 ###############################################
 
 ###################################################
 #7
-imgNai=cv2.imread(str(path_main/"resource"/"nailong.png"))
-img2=cv2.resize(imgNai,(200,200))
-res = cv2.addWeighted(imgScale, 0.7,img2 ,0.3, gamma=3)
-cv2.imshow('res',res)
-cv2.waitKey()
+imgNai=cv2.imread(str(path_main/"resource"/"nailong.png"))  # 读取resource文件夹中的nailong图像
+img2=cv2.resize(imgNai,(200,200))  # 将nailong图像缩放到200×200大小
+res = cv2.addWeighted(imgScale, 0.7,img2 ,0.3, gamma=3)  # 按权重融合两张图像
+cv2.imshow('res',res)  # 显示图像融合结果
+cv2.waitKey()  # 等待键盘按键后继续执行
 #####################################################
 
 #########################################################
@@ -138,19 +120,19 @@ cv2.waitKey(0)  # 等待键盘按键
 
 #######################################################
 #9
-img_not=cv2.bitwise_not(img8)
-cv2.imshow('bit',img_not)
-cv2.waitKey()
+img_not=cv2.bitwise_not(img8)  # 对图像进行按位取反操作
+cv2.imshow('bit',img_not)  # 显示按位取反后的图像
+cv2.waitKey()  # 等待键盘按键后继续执行
 ################################################################
 
 #######################################################################
 #10
-cv2.destroyAllWindows()
-dst=cv2.warpAffine(img8,np.array([[1,0,60],
-                                  [0,1,40]],dtype=np.float32),
-                                  (200,200))
-cv2.imshow('dst',dst)
-cv2.waitKey()
+cv2.destroyAllWindows()  # 关闭所有OpenCV显示窗口
+dst=cv2.warpAffine(img8,np.array([[1,0,60],  # 设置仿射变换矩阵第一行，实现水平方向平移
+                                  [0,1,40]],dtype=np.float32),  # 设置仿射变换矩阵第二行，实现垂直方向平移
+                                  (200,200))  # 设置平移后输出图像的大小
+cv2.imshow('dst',dst)  # 显示平移后的图像
+cv2.waitKey()  # 等待键盘按键后继续执行
 ############################################################################
 
 #######################################################################
