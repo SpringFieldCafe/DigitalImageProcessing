@@ -151,3 +151,82 @@ plt.show()  # 显示所有 Matplotlib 绘图窗口
 ###################################################
 
 
+###########################################
+#6
+# 图像平滑技术主要用于去除噪声、减弱细节和降低图像灰度突变，常见方法有均值滤波、中值滤波、方框滤波、高斯滤波、双边滤波等
+# 均值滤波属于线性滤波，通过邻域像素平均值替代中心像素，能够平滑图像，但容易造成边缘模糊
+# 中值滤波属于非线性滤波，通过邻域像素中值替代中心像素，对椒盐噪声有较好抑制效果，并且比均值滤波更能保护边缘
+# 方框滤波属于线性滤波，本质上使用矩形窗口对邻域像素求和或求平均，归一化方框滤波效果与均值滤波相近
+imgG41_mean = cv2.blur(imgG41, (5, 5))  # 使用 5×5 滤波核对原图进行均值滤波处理
+imgG41_median = cv2.medianBlur(imgG41, 5)  # 使用 5×5 滤波核对原图进行中值滤波处理，核大小必须为奇数
+imgG41_box = cv2.boxFilter(imgG41, -1, (5, 5), normalize=True)  # 使用 5×5 滤波核对原图进行归一化方框滤波处理
+imgG41_smooth_stack = stackImages(0.3, [[imgG41, imgG41_mean], [imgG41_median, imgG41_box]])  # 将原图、均值滤波图、中值滤波图、方框滤波图拼接显示
+cv2.imshow("smooth_filter_compare", imgG41_smooth_stack)  # 显示不同平滑滤波方法的对比结果
+cv2.waitKey(0)  # 等待键盘输入
+cv2.destroyAllWindows()  # 关闭所有 OpenCV 窗口
+# 处理效果分析：均值滤波可以整体平滑图像，但会使图像边缘和细节变模糊
+# 处理效果分析：中值滤波对孤立噪声点的去除效果较好，同时对边缘的保护能力相对更强
+# 处理效果分析：方框滤波在 normalize=True 时与均值滤波效果接近，能够降低噪声，但同样会带来一定模糊
+##################################################
+
+
+
+###########################################
+#7
+# 高斯滤波是一种常用的图像平滑方法，它通过高斯核对邻域像素加权平均，可以有效减弱图像噪声
+# 高斯滤波中卷积核越大，参与计算的邻域范围越大，图像平滑效果越明显，但边缘和细节也会更加模糊
+# 本实验分别选用 3×3、5×5、7×7、9×9、11×11、15×15 六种不同大小的高斯卷积核进行对比
+imgG41_gauss_3 = cv2.GaussianBlur(imgG41, (3, 3), 0)  # 使用 3×3 高斯核对图像进行滤波，平滑程度较弱，细节保留较多
+imgG41_gauss_5 = cv2.GaussianBlur(imgG41, (5, 5), 0)  # 使用 5×5 高斯核对图像进行滤波，噪声进一步减弱
+imgG41_gauss_7 = cv2.GaussianBlur(imgG41, (7, 7), 0)  # 使用 7×7 高斯核对图像进行滤波，图像整体更加平滑
+imgG41_gauss_9 = cv2.GaussianBlur(imgG41, (9, 9), 0)  # 使用 9×9 高斯核对图像进行滤波，边缘细节开始明显模糊
+imgG41_gauss_11 = cv2.GaussianBlur(imgG41, (11, 11), 0)  # 使用 11×11 高斯核对图像进行滤波，平滑效果更强
+imgG41_gauss_15 = cv2.GaussianBlur(imgG41, (15, 15), 0)  # 使用 15×15 高斯核对图像进行滤波，图像模糊程度最明显
+imgG41_gauss_stack = stackImages(0.3, [[imgG41_gauss_3, imgG41_gauss_5, imgG41_gauss_7], [imgG41_gauss_9, imgG41_gauss_11, imgG41_gauss_15]])  # 按 2 行 3 列拼接六种高斯滤波结果
+cv2.imshow("gaussian_filter_compare", imgG41_gauss_stack)  # 显示不同卷积核大小的高斯滤波对比结果
+cv2.waitKey(0)  # 等待键盘输入
+cv2.destroyAllWindows()  # 关闭所有 OpenCV 窗口
+# 实验结果分析：3×3 和 5×5 高斯滤波后图像变化较小，能够轻微去噪并较好保留细节
+# 实验结果分析：7×7 和 9×9 高斯滤波后图像平滑效果更明显，但部分边缘和纹理细节开始减弱
+# 实验结果分析：11×11 和 15×15 高斯滤波后图像模糊程度较强，噪声减少更多，但图像细节损失也更明显
+###################################################################
+
+
+###########################################
+#8
+# 可实现图像锐化的滤波器主要有拉普拉斯算子、Sobel算子、Scharr算子、高通滤波器、非锐化掩蔽、自定义锐化卷积核等
+# 拉普拉斯算子可以突出图像灰度变化剧烈的区域，常用于边缘增强和图像锐化
+# 平滑卷积核通常通过邻域加权平均减弱噪声和细节，使图像变得更平滑
+# 锐化卷积核通常增强中心像素并抑制周围像素，使边缘和纹理细节更加明显
+kernel_mean_3 = np.ones((3, 3), np.float32) / 9  # 创建 3×3 均值平滑卷积核
+kernel_mean_5 = np.ones((5, 5), np.float32) / 25  # 创建 5×5 均值平滑卷积核
+kernel_gauss_3 = np.array([[1, 2, 1], [2, 4, 2], [1, 2, 1]], dtype=np.float32) / 16  # 创建 3×3 类高斯平滑卷积核
+kernel_sharp_3 = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.float32)  # 创建 3×3 普通锐化卷积核
+kernel_strong_sharp_3 = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]], dtype=np.float32)  # 创建 3×3 强锐化卷积核
+imgG41_mean_3 = cv2.filter2D(imgG41, -1, kernel_mean_3)  # 使用 3×3 均值卷积核对图像进行平滑处理
+imgG41_mean_5 = cv2.filter2D(imgG41, -1, kernel_mean_5)  # 使用 5×5 均值卷积核对图像进行平滑处理
+imgG41_gauss_3 = cv2.filter2D(imgG41, -1, kernel_gauss_3)  # 使用 3×3 类高斯卷积核对图像进行平滑处理
+imgG41_lap = cv2.Laplacian(imgG41, cv2.CV_64F, ksize=3)  # 使用 3×3 拉普拉斯算子提取图像二阶边缘信息
+imgG41_lap_sharp = np.clip(imgG41.astype(np.float64) - imgG41_lap, 0, 255).astype(np.uint8)  # 原图减去拉普拉斯响应，实现拉普拉斯锐化
+imgG41_sharp_3 = cv2.filter2D(imgG41, -1, kernel_sharp_3)  # 使用 3×3 普通锐化卷积核增强图像细节
+imgG41_strong_sharp_3 = cv2.filter2D(imgG41, -1, kernel_strong_sharp_3)  # 使用 3×3 强锐化卷积核进一步增强边缘细节
+imgG41_mean_3_text = imgG41_mean_3.copy()  # 复制 3×3 均值滤波结果，避免文字直接影响原结果图
+imgG41_mean_5_text = imgG41_mean_5.copy()  # 复制 5×5 均值滤波结果，避免文字直接影响原结果图
+imgG41_gauss_3_text = imgG41_gauss_3.copy()  # 复制 3×3 类高斯滤波结果，避免文字直接影响原结果图
+imgG41_lap_sharp_text = imgG41_lap_sharp.copy()  # 复制 3×3 拉普拉斯锐化结果，避免文字直接影响原结果图
+imgG41_sharp_3_text = imgG41_sharp_3.copy()  # 复制 3×3 普通锐化结果，避免文字直接影响原结果图
+imgG41_strong_sharp_3_text = imgG41_strong_sharp_3.copy()  # 复制 3×3 强锐化结果，避免文字直接影响原结果图
+cv2.putText(imgG41_mean_3_text, "Mean 3x3", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)  # 在图像上标注 3×3 均值滤波
+cv2.putText(imgG41_mean_5_text, "Mean 5x5", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)  # 在图像上标注 5×5 均值滤波
+cv2.putText(imgG41_gauss_3_text, "Gauss 3x3", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)  # 在图像上标注 3×3 类高斯滤波
+cv2.putText(imgG41_lap_sharp_text, "Laplacian 3x3", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)  # 在图像上标注 3×3 拉普拉斯锐化
+cv2.putText(imgG41_sharp_3_text, "Sharp 3x3", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)  # 在图像上标注 3×3 普通锐化
+cv2.putText(imgG41_strong_sharp_3_text, "Strong Sharp 3x3", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 255), 3)  # 在图像上标注 3×3 强锐化
+imgG41_filter_stack = stackImages(0.3, [[imgG41_mean_3_text, imgG41_mean_5_text, imgG41_gauss_3_text], [imgG41_lap_sharp_text, imgG41_sharp_3_text, imgG41_strong_sharp_3_text]])  # 按 2 行 3 列拼接六种滤波结果
+cv2.imshow("smooth_sharpen_filter_compare", imgG41_filter_stack)  # 显示平滑和锐化滤波处理结果
+cv2.waitKey(0)  # 等待键盘输入
+cv2.destroyAllWindows()  # 关闭所有 OpenCV 窗口
+# 实验结果分析：3×3 均值滤波平滑程度较弱，5×5 均值滤波平滑程度更强，但图像细节损失也更明显
+# 实验结果分析：3×3 类高斯滤波会根据邻域权重进行平滑，相比普通均值滤波通常能更自然地减弱噪声
+# 实验结果分析：拉普拉斯锐化和自定义锐化卷积核可以增强边缘与纹理，但强锐化卷积核可能使噪声和边缘过度增强
+########################################################################3
