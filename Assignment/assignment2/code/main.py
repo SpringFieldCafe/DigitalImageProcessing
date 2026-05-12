@@ -1,67 +1,67 @@
-import numpy as np
-import cv2
-from pathlib import Path
-from matplotlib import pyplot as plt
-import os
+import numpy as np  # 导入 NumPy 库，用于数组和数值计算
+import cv2  # 导入 OpenCV 库，用于图像读取、处理和显示
+from pathlib import Path  # 导入 Path 类，用于跨平台处理文件路径
+from matplotlib import pyplot as plt  # 导入 Matplotlib 绘图模块，用于绘制直方图
+import os  # 导入 os 模块，用于系统路径等相关操作
 
-code_dir=Path(__file__).resolve().parent
-assignment2_dir=code_dir.resolve().parent
-src_dir=assignment2_dir.resolve()/"resource"
-g41_path=src_dir/"g41_0.jpg"
-miku_path=src_dir/"miku_0.jpg"
+code_dir=Path(__file__).resolve().parent  # 获取当前代码文件所在目录
+assignment2_dir=code_dir.resolve().parent  # 获取 assignment2 文件夹路径
+src_dir=assignment2_dir.resolve()/"resource"  # 拼接 resource 资源文件夹路径
+g41_path=src_dir/"g41_0.jpg"  # 拼接 g41_0.jpg 图像路径
+miku_path=src_dir/"miku_0.jpg"  # 拼接 miku_0.jpg 图像路径
 
-def stackImages(scale,imgArray):
-    rowsAvailable=isinstance(imgArray[0],list)
+def stackImages(scale,imgArray):  # 定义图像拼接函数，scale 为缩放比例，imgArray 为待拼接图像数组
+    rowsAvailable=isinstance(imgArray[0],list)  # 判断输入图像数组是否为二维列表
     if rowsAvailable:
-        width=imgArray[0][0].shape[1]
-        height=imgArray[0][0].shape[0]
-        rows=len(imgArray)
-        cols= max(len(row) for row in imgArray)
-        imgBlack = np.zeros_like(imgArray[0][0])
+        width=imgArray[0][0].shape[1]  # 获取基准图像宽度
+        height=imgArray[0][0].shape[0]  # 获取基准图像高度
+        rows=len(imgArray)  # 获取图像拼接的行数
+        cols= max(len(row) for row in imgArray)  # 获取图像拼接的最大列数
+        imgBlack = np.zeros_like(imgArray[0][0])  # 创建与基准图像大小相同的黑色占位图
         for x in range(0,rows):
-            while len(imgArray[x]) < cols:
-                imgArray[x].append(imgBlack.copy())
-            for y in range(0,cols):
-                if imgArray[x][y].shape[:2]==imgArray[0][0].shape[:2]:
-                    imgArray[x][y]=cv2.resize(imgArray[x][y],(0,0),None,scale,scale)
-                else:
-                    imgArray[x][y]=cv2.resize(imgArray[x][y],(imgArray[0][0].shape[1],imgArray[0][0].shape[0]),None,scale,scale)
+            while len(imgArray[x]) < cols:  # 当当前行图像数量不足最大列数时继续补齐
+                imgArray[x].append(imgBlack.copy())  # 用黑色图像补齐当前行列数
+            for y in range(0,cols):  # 遍历当前行中的每一列图像
+                if imgArray[x][y].shape[:2]==imgArray[0][0].shape[:2]:  # 判断当前图像尺寸是否与基准图像一致
+                    imgArray[x][y]=cv2.resize(imgArray[x][y],(0,0),None,scale,scale)  # 按比例缩放与基准尺寸一致的图像
+                else:  # 当前图像尺寸与基准图像不一致时执行统一尺寸处理
+                    imgArray[x][y]=cv2.resize(imgArray[x][y],(imgArray[0][0].shape[1],imgArray[0][0].shape[0]),None,scale,scale)  # 先统一到基准尺寸再按比例缩放
                 if len(imgArray[x][y].shape)==2:
-                    imgArray[x][y]=cv2.cvtColor(imgArray[x][y],cv2.COLOR_GRAY2BGR)
-        imgBlack=np.zeros((height,width,3),np.uint8)
-        hor=[imgBlack]*rows
+                    imgArray[x][y]=cv2.cvtColor(imgArray[x][y],cv2.COLOR_GRAY2BGR)  # 将灰度图转换为三通道 BGR 图像
+        imgBlack=np.zeros((height,width,3),np.uint8)  # 创建三通道黑色图像
+        hor=[imgBlack]*rows  # 初始化每一行横向拼接后的图像列表
         for x in range(0,rows):
-            hor[x]=np.hstack(imgArray[x])
-        ver=np.vstack(hor)
+            hor[x]=np.hstack(imgArray[x])  # 对当前行图像进行横向拼接
+        ver=np.vstack(hor)  # 将各行结果纵向拼接成最终图像
     else:
-        width=imgArray[0].shape[1]
-        height=imgArray[0].shape[0]
-        cols=len(imgArray)
+        width=imgArray[0].shape[1]  # 获取一维图像列表中基准图像宽度
+        height=imgArray[0].shape[0]  # 获取一维图像列表中基准图像高度
+        cols=len(imgArray)  # 获取一维图像列表的图像数量
 
-        for x in range(0,cols):
-            if imgArray[x].shape[:2]==imgArray[0].shape[:2]:
-                imgArray[x]=cv2.resize(imgArray[x],(0,0),None,scale,scale)
-            else:
-                imgArray[x]=cv2.resize(imgArray[x],(imgArray[0].shape[1],imgArray[0].shape[0]),None,scale,scale)  
+        for x in range(0,cols):  # 遍历一维图像列表中的每一张图像
+            if imgArray[x].shape[:2]==imgArray[0].shape[:2]:  # 判断当前图像尺寸是否与基准图像一致
+                imgArray[x]=cv2.resize(imgArray[x],(0,0),None,scale,scale)  # 按比例缩放与基准尺寸一致的图像
+            else:  # 当前图像尺寸与基准图像不一致时执行统一尺寸处理
+                imgArray[x]=cv2.resize(imgArray[x],(imgArray[0].shape[1],imgArray[0].shape[0]),None,scale,scale)  # 先统一到基准尺寸再按比例缩放
             if len(imgArray[x].shape)==2:
-                imgArray[x]=cv2.cvtColor(imgArray[x],cv2.COLOR_GRAY2BGR)
-        hor=np.hstack(imgArray)
-        ver=hor
-    return ver
+                imgArray[x]=cv2.cvtColor(imgArray[x],cv2.COLOR_GRAY2BGR)  # 将灰度图转换为三通道 BGR 图像
+        hor=np.hstack(imgArray)  # 将一维列表中的图像横向拼接
+        ver=hor  # 一维拼接时最终结果即为横向拼接结果
+    return ver  # 返回拼接后的图像
 
 
 #######################################
 #1
-imgG41=cv2.imread(str(g41_path))
+imgG41=cv2.imread(str(g41_path))  # 读取 g41_0.jpg 原始图像
 imgG41_hsv = cv2.cvtColor(imgG41, cv2.COLOR_BGR2HSV)  # BGR 转 HSV 色彩空间
 imgG41_hls = cv2.cvtColor(imgG41, cv2.COLOR_BGR2HLS)  # BGR 转 HLS 色彩空间
 imgG41_lab = cv2.cvtColor(imgG41, cv2.COLOR_BGR2LAB)  # BGR 转 LAB 色彩空间
 imgG41_yuv = cv2.cvtColor(imgG41, cv2.COLOR_BGR2YUV)  # BGR 转 YUV 色彩空间
-imgG41stack=stackImages(0.3,[[imgG41_hls,imgG41_hsv],
-                             [imgG41_lab,imgG41_yuv]])
-cv2.imshow('stack',imgG41stack)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+imgG41stack=stackImages(0.3,[[imgG41_hls,imgG41_hsv],  # 调用图像拼接函数准备显示颜色空间结果
+                             [imgG41_lab,imgG41_yuv]])  # 拼接不同颜色空间转换后的图像
+cv2.imshow('stack',imgG41stack)  # 显示颜色空间转换结果拼接图
+cv2.waitKey(0)  # 等待键盘输入
+cv2.destroyAllWindows()  # 关闭所有 OpenCV 窗口
 ########################################################
 
 
