@@ -244,7 +244,15 @@ cv2.destroyAllWindows()#关闭所有窗口
 # 方法一采用反色高斯模糊与颜色减淡融合，可以模拟铅笔素描中明暗渐变的效果
 # 方法二采用双边滤波和 Canny 边缘检测，可以保留较清晰的人物边缘线条
 # 方法三采用自适应阈值分割，可以得到黑白线稿风格较强的素描效果
+# 方法四采用 Sobel 梯度算子提取水平和垂直方向边缘，再反色得到白底黑线素描效果
+# 方法五采用拉普拉斯算子提取二阶边缘信息，可以突出图像中灰度突变明显的区域
+# 方法六采用 DoG 差分高斯方法，通过两次不同程度的高斯模糊相减突出轮廓和纹理
+result_dir.mkdir(parents=True, exist_ok=True)  # 如果 result 文件夹不存在，则自动创建
+nailong_path = Path(os.path.abspath(os.path.join(resource_dir, "nailong1.jpg")))  # 设置 nailong1.jpg 图像路径
 imgNailong = cv2.imread(str(nailong_path))  # 读取 nailong1.jpg 原始彩色图像
+if imgNailong is None:  # 判断图像是否读取成功
+    raise FileNotFoundError(f"图片读取失败：{nailong_path}")  # 如果读取失败，抛出文件路径错误
+violet_color = (238, 130, 238)  # 设置文字颜色为 Violet，OpenCV 使用 BGR 顺序，Violet 的 RGB/BGR 数值刚好相同
 imgNailong_gray = cv2.cvtColor(imgNailong, cv2.COLOR_BGR2GRAY)  # 将原始彩色图像转换为灰度图像
 imgNailong_inv = 255 - imgNailong_gray  # 对灰度图像进行反色处理
 imgNailong_blur = cv2.GaussianBlur(imgNailong_inv, (21, 21), 0)  # 对反色图像进行高斯模糊处理
@@ -254,21 +262,47 @@ imgNailong_canny = cv2.Canny(imgNailong_bilateral, 50, 150)  # 使用 Canny 算�
 imgNailong_canny_sketch = 255 - imgNailong_canny  # 对 Canny 边缘结果进行反色，得到白底黑线素描图
 imgNailong_median = cv2.medianBlur(imgNailong_gray, 5)  # 使用中值滤波减少噪声干扰
 imgNailong_adaptive = cv2.adaptiveThreshold(imgNailong_median, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)  # 使用高斯自适应阈值生成黑白素描线稿
+sobel_x = cv2.Sobel(imgNailong_gray, cv2.CV_64F, 1, 0, ksize=3)  # 使用 Sobel 算子计算图像水平方向梯度
+sobel_y = cv2.Sobel(imgNailong_gray, cv2.CV_64F, 0, 1, ksize=3)  # 使用 Sobel 算子计算图像垂直方向梯度
+imgNailong_sobel = cv2.convertScaleAbs(np.sqrt(sobel_x ** 2 + sobel_y ** 2))  # 合成 Sobel 水平和垂直方向的边缘强度
+imgNailong_sobel_sketch = 255 - imgNailong_sobel  # 对 Sobel 边缘图进行反色，生成白底黑线素描效果
+laplacian = cv2.Laplacian(imgNailong_gray, cv2.CV_64F, ksize=3)  # 使用拉普拉斯算子提取图像二阶边缘信息
+imgNailong_lap = cv2.convertScaleAbs(laplacian)  # 将拉普拉斯边缘结果转换为 uint8 图像
+imgNailong_lap_sketch = 255 - imgNailong_lap  # 对拉普拉斯边缘图进行反色，生成素描线条效果
+imgNailong_blur_small = cv2.GaussianBlur(imgNailong_gray, (3, 3), 0)  # 使用较小高斯核对灰度图进行轻微模糊
+imgNailong_blur_large = cv2.GaussianBlur(imgNailong_gray, (11, 11), 0)  # 使用较大高斯核对灰度图进行较强模糊
+imgNailong_dog = cv2.subtract(imgNailong_blur_small, imgNailong_blur_large)  # 使用两幅不同模糊程度图像相减，得到 DoG 差分高斯结果
+imgNailong_dog = cv2.normalize(imgNailong_dog, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)  # 将 DoG 结果归一化到 0 到 255
+_, imgNailong_dog_sketch = cv2.threshold(imgNailong_dog, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)  # 使用 Otsu 阈值法生成 DoG 黑白素描图
 imgNailong_origin_text = imgNailong.copy()  # 复制原图，便于添加文字说明
 imgNailong_pencil_text = cv2.cvtColor(imgNailong_pencil, cv2.COLOR_GRAY2BGR)  # 将铅笔素描图转换为三通道图像，便于添加文字
 imgNailong_canny_text = cv2.cvtColor(imgNailong_canny_sketch, cv2.COLOR_GRAY2BGR)  # 将 Canny 素描图转换为三通道图像，便于添加文字
 imgNailong_adaptive_text = cv2.cvtColor(imgNailong_adaptive, cv2.COLOR_GRAY2BGR)  # 将自适应阈值素描图转换为三通道图像，便于添加文字
-cv2.putText(imgNailong_origin_text, "Original", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 255), 3)  # 在原图上标注 Original
-cv2.putText(imgNailong_pencil_text, "Pencil Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 255), 3)  # 在铅笔素描图上标注 Pencil Sketch
-cv2.putText(imgNailong_canny_text, "Canny Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 255), 3)  # 在 Canny 素描图上标注 Canny Sketch
-cv2.putText(imgNailong_adaptive_text, "Adaptive Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 255), 3)  # 在自适应阈值素描图上标注 Adaptive Sketch
-imgNailongSketchStack = stackImages(0.5, [[imgNailong_origin_text, imgNailong_pencil_text], [imgNailong_canny_text, imgNailong_adaptive_text]])  # 将原图和三种素描效果图按 2 行 2 列拼接
-cv2.imwrite(str(result_dir / "nailong_sketch_compare.jpg"), imgNailongSketchStack)  # 将素描对比结果图保存到 result 文件夹
-cv2.imshow("nailong_sketch_compare", imgNailongSketchStack)  # 显示自画像素描效果对比图
+cv2.putText(imgNailong_origin_text, "Original", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, violet_color, 3)  # 在原图上标注 Original
+cv2.putText(imgNailong_pencil_text, "Pencil Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, violet_color, 3)  # 在铅笔素描图上标注 Pencil Sketch
+cv2.putText(imgNailong_canny_text, "Canny Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, violet_color, 3)  # 在 Canny 素描图上标注 Canny Sketch
+cv2.putText(imgNailong_adaptive_text, "Adaptive Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, violet_color, 3)  # 在自适应阈值素描图上标注 Adaptive Sketch
+imgNailongSketchStack = stackImages(0.4, [[imgNailong_origin_text, imgNailong_pencil_text], [imgNailong_canny_text, imgNailong_adaptive_text]])  # 将原图和三种素描效果图按 2 行 2 列拼接
+cv2.imwrite(str(result_dir / "nailong_sketch_compare.jpg"), imgNailongSketchStack)  # 将第一张素描对比结果图保存到 result 文件夹
+cv2.imshow("nailong_sketch_compare", imgNailongSketchStack)  # 显示第一张自画像素描效果对比图
+imgNailong_origin_text2 = imgNailong.copy()  # 复制原图，便于在第二张堆叠图中进行对比
+imgNailong_sobel_text = cv2.cvtColor(imgNailong_sobel_sketch, cv2.COLOR_GRAY2BGR)  # 将 Sobel 素描图转换为三通道图像，便于添加文字
+imgNailong_lap_text = cv2.cvtColor(imgNailong_lap_sketch, cv2.COLOR_GRAY2BGR)  # 将 Laplacian 素描图转换为三通道图像，便于添加文字
+imgNailong_dog_text = cv2.cvtColor(imgNailong_dog_sketch, cv2.COLOR_GRAY2BGR)  # 将 DoG 素描图转换为三通道图像，便于添加文字
+cv2.putText(imgNailong_origin_text2, "Original", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, violet_color, 3)  # 在原图上标注 Original
+cv2.putText(imgNailong_sobel_text, "Sobel Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, violet_color, 3)  # 在 Sobel 素描图上标注 Sobel Sketch
+cv2.putText(imgNailong_lap_text, "Laplacian Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, violet_color, 3)  # 在 Laplacian 素描图上标注 Laplacian Sketch
+cv2.putText(imgNailong_dog_text, "DoG Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, violet_color, 3)  # 在 DoG 素描图上标注 DoG Sketch
+imgNailongSketchStack2 = stackImages(0.4, [[imgNailong_origin_text2, imgNailong_sobel_text], [imgNailong_lap_text, imgNailong_dog_text]])  # 将原图和三种新增素描效果图按 2 行 2 列拼接
+cv2.imwrite(str(result_dir / "nailong_sketch_compare2.jpg"), imgNailongSketchStack2)  # 将第二张素描对比结果图保存到 result 文件夹
+cv2.imshow("nailong_sketch_compare2", imgNailongSketchStack2)  # 显示第二张自画像素描效果对比图
 cv2.waitKey(0)  # 等待键盘输入
 cv2.destroyAllWindows()  # 关闭所有 OpenCV 窗口
 # 实验结果分析：Pencil Sketch 方法能较好保留灰度层次，整体效果更接近铅笔绘制的明暗素描
 # 实验结果分析：Canny Sketch 方法突出边缘轮廓，线条清晰，但图像内部明暗层次较少
 # 实验结果分析：Adaptive Sketch 方法黑白对比强烈，具有线稿风格，但局部细节可能较碎
-# 实验结果分析：与原图相比，三种素描方法都弱化了颜色信息，主要通过灰度、边缘和纹理来表现图像内容
+# 实验结果分析：Sobel Sketch 主要突出水平和垂直方向边缘，轮廓比较清晰
+# 实验结果分析：Laplacian Sketch 对灰度突变区域更敏感，边缘细节更丰富，但也更容易受噪声影响
+# 实验结果分析：DoG Sketch 通过不同模糊程度图像相减突出轮廓，线稿效果较明显，整体更接近黑白描边风格
+# 实验结果分析：与原图相比，六种素描方法都弱化了颜色信息，主要通过灰度、边缘和纹理来表现图像内容
 ###############################################################################
