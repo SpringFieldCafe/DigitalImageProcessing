@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from matplotlib import pyplot
+from matplotlib import pyplot as plt
 from pathlib import Path
 import cv2
 
@@ -10,6 +10,7 @@ assignment3_dir=os.path.abspath(os.path.join(code_dir,".."))
 resource_dir=Path(assignment3_dir)/"resource"
 result_dir=Path(assignment3_dir)/"result"
 suomi_path=resource_dir/"suomi.jpg"
+nailong_path=Path(os.path.abspath(os.path.join(resource_dir,'nailong1.jpg')))
 
 def stackImages(scale,imgArray):  # 定义图像拼接函数，scale 为缩放比例，imgArray 为待拼接图像数组
     rowsAvailable=isinstance(imgArray[0],list)  # 判断输入图像数组是否为二维列表
@@ -187,3 +188,87 @@ cv2.destroyAllWindows()  # 关闭所有 OpenCV 窗口
 # 实验结果分析：LoG 算子先高斯平滑再拉普拉斯检测，能减弱噪声影响，边缘结果比单独拉普拉斯更平滑
 # 实验结果分析：Canny 算子包含平滑、梯度计算、非极大值抑制和双阈值连接，边缘通常更细、更连续
 ##################################################################################################
+
+###############################################
+#4
+# 全局阈值分割是给整幅图像设定一个固定阈值，将像素分为目标和背景两类
+# 自适应阈值分割会根据像素邻域局部信息动态计算阈值，适合光照不均匀的图像
+# 最大类间方差法又叫 Otsu 阈值法，会自动寻找一个最优阈值，使前景和背景类间方差最大
+# 不同阈值方法的处理效果不同，固定阈值方法简单但受光照影响较大，自适应阈值和 Otsu 方法通常更灵活
+imgSuomi = cv2.imread(str(suomi_path), cv2.IMREAD_GRAYSCALE)  # 以灰度图方式读取 suomi.jpg 图像
+if imgSuomi is None:  # 判断图像是否读取成功
+    raise FileNotFoundError(f"图片读取失败：{suomi_path}")  # 如果读取失败，抛出文件路径错误
+violet_color = (238, 130, 238)  # 设置文字颜色为 Violet，OpenCV 使用 BGR 顺序，此颜色的 B 和 R 数值相同
+ret_binary, img_binary = cv2.threshold(imgSuomi, 127, 255, cv2.THRESH_BINARY)  # 使用全局固定阈值进行二值化分割
+ret_binary_inv, img_binary_inv = cv2.threshold(imgSuomi, 127, 255, cv2.THRESH_BINARY_INV)  # 使用全局固定阈值进行反二值化分割
+ret_trunc, img_trunc = cv2.threshold(imgSuomi, 127, 255, cv2.THRESH_TRUNC)  # 使用截断阈值方法处理图像，高于阈值的像素被截断为阈值
+img_adaptive_mean = cv2.adaptiveThreshold(imgSuomi, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2)  # 使用邻域均值自适应阈值方法进行分割
+img_adaptive_gauss = cv2.adaptiveThreshold(imgSuomi, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)  # 使用高斯加权自适应阈值方法进行分割
+ret_otsu, img_otsu = cv2.threshold(imgSuomi, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)  # 使用 Otsu 最大类间方差法自动计算阈值并分割图像
+hist_suomi = cv2.calcHist([imgSuomi], [0], None, [256], [0, 256])  # 计算灰度图像的直方图，用于观察灰度分布和阈值位置
+plt.figure("Threshold Histogram")  # 创建阈值分割直方图窗口对象
+plt.plot(hist_suomi, color="black", label="Gray Histogram")  # 绘制灰度图像直方图曲线
+plt.axvline(127, color="violet", linestyle="--", label="Global Threshold=127")  # 在直方图中标出全局固定阈值位置
+plt.axvline(ret_otsu, color="red", linestyle="--", label=f"Otsu Threshold={ret_otsu:.1f}")  # 在直方图中标出 Otsu 自动阈值位置
+plt.title("Gray Histogram and Thresholds")  # 设置直方图标题
+plt.xlabel("Pixel Value")  # 设置横坐标名称为像素灰度值
+plt.ylabel("Pixel Count")  # 设置纵坐标名称为像素数量
+plt.legend()  # 显示图例信息
+plt.close()  # 关闭 Matplotlib 图像窗口对象，不显示也不保存
+img_binary_text = cv2.cvtColor(img_binary, cv2.COLOR_GRAY2BGR)  # 将全局二值化结果转换为三通道图像，便于添加彩色文字
+img_binary_inv_text = cv2.cvtColor(img_binary_inv, cv2.COLOR_GRAY2BGR)  # 将全局反二值化结果转换为三通道图像，便于添加彩色文字
+img_trunc_text = cv2.cvtColor(img_trunc, cv2.COLOR_GRAY2BGR)  # 将截断阈值结果转换为三通道图像，便于添加彩色文字
+img_adaptive_mean_text = cv2.cvtColor(img_adaptive_mean, cv2.COLOR_GRAY2BGR)  # 将均值自适应阈值结果转换为三通道图像，便于添加彩色文字
+img_adaptive_gauss_text = cv2.cvtColor(img_adaptive_gauss, cv2.COLOR_GRAY2BGR)  # 将高斯自适应阈值结果转换为三通道图像，便于添加彩色文字
+img_otsu_text = cv2.cvtColor(img_otsu, cv2.COLOR_GRAY2BGR)  # 将 Otsu 阈值分割结果转换为三通道图像，便于添加彩色文字
+cv2.putText(img_binary_text, "Global Binary 127", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, violet_color, 3)  # 在图像上标注全局二值化阈值类型
+cv2.putText(img_binary_inv_text, "Global Binary Inv", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, violet_color, 3)  # 在图像上标注全局反二值化阈值类型
+cv2.putText(img_trunc_text, "Global Trunc 127", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, violet_color, 3)  # 在图像上标注全局截断阈值类型
+cv2.putText(img_adaptive_mean_text, "Adaptive Mean", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, violet_color, 3)  # 在图像上标注均值自适应阈值类型
+cv2.putText(img_adaptive_gauss_text, "Adaptive Gaussian", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, violet_color, 3)  # 在图像上标注高斯自适应阈值类型
+cv2.putText(img_otsu_text, f"Otsu {ret_otsu:.1f}", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, violet_color, 3)  # 在图像上标注 Otsu 自动阈值结果
+imgThresholdStack = stackImages(0.5, [[img_binary_text, img_binary_inv_text, img_trunc_text], [img_adaptive_mean_text, img_adaptive_gauss_text, img_otsu_text]])  # 将六种阈值处理结果按 2 行 3 列拼接
+cv2.imshow('s',imgThresholdStack)#展示对比图
+cv2.waitKey()#延长展示时间
+cv2.destroyAllWindows()#关闭所有窗口
+# 实验结果分析：全局二值化方法简单直观，但阈值固定，图像亮度变化较大时分割效果容易变差
+# 实验结果分析：反二值化与普通二值化前景背景相反，适合目标与背景灰度关系相反的情况
+# 实验结果分析：截断阈值不会直接变成纯黑白图，而是压制高灰度区域，适合观察灰度压缩效果
+# 实验结果分析：自适应阈值方法根据局部邻域计算阈值，对光照不均匀图像通常比固定阈值更有效
+# 实验结果分析：Otsu 方法能自动确定阈值，不需要人工设置固定阈值，当前图像自动阈值为 ret_otsu
+##################################################################################################################################################################
+
+###############################################
+#5
+# 自画像素描效果的基本思路是先将彩色图像转为灰度图，再通过反色、模糊、边缘检测、阈值分割等方法突出轮廓和明暗关系
+# 方法一采用反色高斯模糊与颜色减淡融合，可以模拟铅笔素描中明暗渐变的效果
+# 方法二采用双边滤波和 Canny 边缘检测，可以保留较清晰的人物边缘线条
+# 方法三采用自适应阈值分割，可以得到黑白线稿风格较强的素描效果
+imgNailong = cv2.imread(str(nailong_path))  # 读取 nailong1.jpg 原始彩色图像
+imgNailong_gray = cv2.cvtColor(imgNailong, cv2.COLOR_BGR2GRAY)  # 将原始彩色图像转换为灰度图像
+imgNailong_inv = 255 - imgNailong_gray  # 对灰度图像进行反色处理
+imgNailong_blur = cv2.GaussianBlur(imgNailong_inv, (21, 21), 0)  # 对反色图像进行高斯模糊处理
+imgNailong_pencil = cv2.divide(imgNailong_gray, 255 - imgNailong_blur, scale=256)  # 使用颜色减淡公式生成铅笔素描效果图
+imgNailong_bilateral = cv2.bilateralFilter(imgNailong_gray, 9, 75, 75)  # 使用双边滤波平滑图像，同时尽量保留边缘
+imgNailong_canny = cv2.Canny(imgNailong_bilateral, 50, 150)  # 使用 Canny 算子提取图像边缘
+imgNailong_canny_sketch = 255 - imgNailong_canny  # 对 Canny 边缘结果进行反色，得到白底黑线素描图
+imgNailong_median = cv2.medianBlur(imgNailong_gray, 5)  # 使用中值滤波减少噪声干扰
+imgNailong_adaptive = cv2.adaptiveThreshold(imgNailong_median, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2)  # 使用高斯自适应阈值生成黑白素描线稿
+imgNailong_origin_text = imgNailong.copy()  # 复制原图，便于添加文字说明
+imgNailong_pencil_text = cv2.cvtColor(imgNailong_pencil, cv2.COLOR_GRAY2BGR)  # 将铅笔素描图转换为三通道图像，便于添加文字
+imgNailong_canny_text = cv2.cvtColor(imgNailong_canny_sketch, cv2.COLOR_GRAY2BGR)  # 将 Canny 素描图转换为三通道图像，便于添加文字
+imgNailong_adaptive_text = cv2.cvtColor(imgNailong_adaptive, cv2.COLOR_GRAY2BGR)  # 将自适应阈值素描图转换为三通道图像，便于添加文字
+cv2.putText(imgNailong_origin_text, "Original", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 255), 3)  # 在原图上标注 Original
+cv2.putText(imgNailong_pencil_text, "Pencil Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 255), 3)  # 在铅笔素描图上标注 Pencil Sketch
+cv2.putText(imgNailong_canny_text, "Canny Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 255), 3)  # 在 Canny 素描图上标注 Canny Sketch
+cv2.putText(imgNailong_adaptive_text, "Adaptive Sketch", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.3, (0, 255, 255), 3)  # 在自适应阈值素描图上标注 Adaptive Sketch
+imgNailongSketchStack = stackImages(0.5, [[imgNailong_origin_text, imgNailong_pencil_text], [imgNailong_canny_text, imgNailong_adaptive_text]])  # 将原图和三种素描效果图按 2 行 2 列拼接
+cv2.imwrite(str(result_dir / "nailong_sketch_compare.jpg"), imgNailongSketchStack)  # 将素描对比结果图保存到 result 文件夹
+cv2.imshow("nailong_sketch_compare", imgNailongSketchStack)  # 显示自画像素描效果对比图
+cv2.waitKey(0)  # 等待键盘输入
+cv2.destroyAllWindows()  # 关闭所有 OpenCV 窗口
+# 实验结果分析：Pencil Sketch 方法能较好保留灰度层次，整体效果更接近铅笔绘制的明暗素描
+# 实验结果分析：Canny Sketch 方法突出边缘轮廓，线条清晰，但图像内部明暗层次较少
+# 实验结果分析：Adaptive Sketch 方法黑白对比强烈，具有线稿风格，但局部细节可能较碎
+# 实验结果分析：与原图相比，三种素描方法都弱化了颜色信息，主要通过灰度、边缘和纹理来表现图像内容
+###############################################################################
