@@ -165,3 +165,120 @@ cv2.destroyAllWindows()  # 关闭所有OpenCV显示窗口
 
 ############################################################
 #2
+#=======================  自定义插值辅助函数  ===================
+def nearest_neighbor_resize_custom(img,scale):  # 定义最近邻插值放大函数
+    src_h,src_w,channels=img.shape  # 获取原图高度、宽度和通道数
+    dst_h=int(src_h*scale)  # 根据放大倍数计算目标图像高度
+    dst_w=int(src_w*scale)  # 根据放大倍数计算目标图像宽度
+    y_index=np.round(np.arange(dst_h)/scale).astype(np.int32)  # 计算目标图像每一行对应的原图最近邻行坐标
+    x_index=np.round(np.arange(dst_w)/scale).astype(np.int32)  # 计算目标图像每一列对应的原图最近邻列坐标
+    y_index=np.clip(y_index,0,src_h-1)  # 限制行坐标范围，防止越界
+    x_index=np.clip(x_index,0,src_w-1)  # 限制列坐标范围，防止越界
+    dst_img=img[y_index[:,None],x_index[None,:]]  # 使用NumPy索引一次性完成最近邻插值映射
+    return dst_img.copy()  # 返回最近邻插值放大后的图像
+def bilinear_resize_custom(img,scale):  # 定义双线性插值放大函数
+    src_h,src_w,channels=img.shape  # 获取原图高度、宽度和通道数
+    dst_h=int(src_h*scale)  # 根据放大倍数计算目标图像高度
+    dst_w=int(src_w*scale)  # 根据放大倍数计算目标图像宽度
+    dst_img=np.zeros((dst_h,dst_w,channels),dtype=np.uint8)  # 创建目标图像空数组
+    x=np.arange(dst_w)/scale  # 计算目标图像所有列对应的原图浮点x坐标
+    x0=np.floor(x).astype(np.int32)  # 获取左侧像素点x坐标
+    x1=np.clip(x0+1,0,src_w-1)  # 获取右侧像素点x坐标并防止越界
+    x0=np.clip(x0,0,src_w-1)  # 限制左侧像素点x坐标范围
+    dx=(x-x0).astype(np.float32)  # 计算x方向上的小数距离
+    dx_3=dx[:,None]  # 将x方向权重扩展为二维，便于和三通道像素计算
+    for y in range(dst_h):  # 遍历目标图像每一行，但每一行内部使用NumPy向量化计算
+        if y%100==0:  # 每处理100行输出一次进度
+            sys.stdout.write(f"双线性插值处理中：{y}/{dst_h}\n")  # 使用sys模块输出当前处理进度
+            sys.stdout.flush()  # 立即刷新输出缓冲区
+        src_y=y/scale  # 根据目标图像y坐标反推原图中的浮点y坐标
+        y0=int(np.floor(src_y))  # 获取上方像素点y坐标
+        y1=min(y0+1,src_h-1)  # 获取下方像素点y坐标并防止越界
+        y0=min(y0,src_h-1)  # 限制上方像素点y坐标范围
+        dy=np.float32(src_y-y0)  # 计算y方向上的小数距离
+        p00=img[y0,x0].astype(np.float32)  # 获取当前行对应的左上像素数组
+        p01=img[y0,x1].astype(np.float32)  # 获取当前行对应的右上像素数组
+        p10=img[y1,x0].astype(np.float32)  # 获取当前行对应的左下像素数组
+        p11=img[y1,x1].astype(np.float32)  # 获取当前行对应的右下像素数组
+        top=p00*(1-dx_3)+p01*dx_3  # 计算上方两个像素在x方向上的线性插值
+        bottom=p10*(1-dx_3)+p11*dx_3  # 计算下方两个像素在x方向上的线性插值
+        value=top*(1-dy)+bottom*dy  # 计算y方向上的线性插值
+        dst_img[y]=np.clip(value,0,255).astype(np.uint8)  # 将当前行插值结果写入目标图像
+    sys.stdout.write("双线性插值处理完成\n")  # 使用sys模块输出处理完成提示
+    sys.stdout.flush()  # 立即刷新输出缓冲区
+    return dst_img  # 返回双线性插值放大后的图像
+def put_text_blurviolet(img,text):  # 定义使用blurviolet颜色添加说明文字的辅助函数
+    temp=img.copy()  # 复制输入图像，避免直接修改原图
+    blurviolet_color=(226,43,138)  # 设置OpenCV中的blurviolet近似颜色，BGR格式
+    cv2.putText(temp,text,(30,60),cv2.FONT_HERSHEY_SIMPLEX,1.5,blurviolet_color,3)  # 在图像左上角添加blurviolet颜色说明文字
+    return temp  # 返回添加文字后的图像
+
+
+#=========================================================================================================
+code_dir=Path(os.path.abspath(os.path.dirname(os.path.abspath(__file__))))  # 获取当前代码文件所在文件夹路径
+assignment4_dir=code_dir.parent  # 获取assignment4目录路径
+resource_dir=assignment4_dir/"resource"  # 设置resource资源文件夹路径
+result_dir=assignment4_dir/"result"  # 设置result结果输出文件夹路径
+result_dir.mkdir(parents=True,exist_ok=True)  # 如果result文件夹不存在，则自动创建
+self_image2_path=Path(resource_dir/"self-image2.jpg")  # 设置第二张自拍照片路径
+sys.stdout.write("第二题：正在执行最近邻插值和双线性插值自定义放大程序\n")  # 调用sys模块输出程序运行提示信息
+sys.stdout.write(f"当前Python解释器路径：{sys.executable}\n")  # 调用sys模块输出当前Python解释器路径
+self_img2=cv_imread_chinese(self_image2_path)  # 使用支持中文路径的函数读取第二张自拍图像
+if self_img2 is None:  # 判断第二张自拍照片是否读取失败
+    raise FileNotFoundError(f"未找到第二张自拍图片：{self_image2_path}")  # 如果读取失败，则抛出文件不存在错误
+scale_factor=1.5  # 设置图像放大倍数为1.5倍
+original_h,original_w=self_img2.shape[:2]  # 获取原始自拍图像的高度和宽度
+target_h=int(original_h*scale_factor)  # 根据放大倍数计算目标图像高度
+target_w=int(original_w*scale_factor)  # 根据放大倍数计算目标图像宽度
+nearest_img=nearest_neighbor_resize_custom(self_img2,scale_factor)  # 调用自定义最近邻插值函数将自拍图像放大1.5倍
+bilinear_img=bilinear_resize_custom(self_img2,scale_factor)  # 调用自定义双线性插值函数将自拍图像放大1.5倍
+cv_imwrite_chinese(result_dir/"第二题_最近邻插值放大1.5倍.png",nearest_img)  # 保存最近邻插值放大结果图像
+cv_imwrite_chinese(result_dir/"第二题_双线性插值放大1.5倍.png",bilinear_img)  # 保存双线性插值放大结果图像
+original_text=put_text_blurviolet(self_img2,"Original Self Image 2")  # 给原始自拍图像添加blurviolet颜色说明文字
+nearest_text=put_text_blurviolet(nearest_img,"Nearest Neighbor x1.5")  # 给最近邻插值结果添加blurviolet颜色说明文字
+bilinear_text=put_text_blurviolet(bilinear_img,"Bilinear Interpolation x1.5")  # 给双线性插值结果添加blurviolet颜色说明文字
+cv_imwrite_chinese(result_dir/"第二题_原始自拍图像self-image2.png",original_text)  # 单独保存带文字说明的原始自拍图像
+cv_imwrite_chinese(result_dir/"第二题_最近邻插值放大1.5倍_单图展示.png",nearest_text)  # 单独保存带文字说明的最近邻插值放大图像
+cv_imwrite_chinese(result_dir/"第二题_双线性插值放大1.5倍_单图展示.png",bilinear_text)  # 单独保存带文字说明的双线性插值放大图像
+plt.figure(figsize=(8,6))  # 创建matplotlib窗口用于显示原始自拍图像
+plt.imshow(cv2.cvtColor(self_img2,cv2.COLOR_BGR2RGB))  # 显示原始自拍图像并将BGR格式转换为RGB格式
+plt.title(f"Original Image\nsize={original_w}x{original_h}")  # 设置原始图像标题并显示原始尺寸
+plt.axis("off")  # 关闭坐标轴
+plt.tight_layout()  # 自动调整图像布局
+plt.savefig(result_dir/"第二题_原始自拍图像单独figure.png",dpi=200,bbox_inches="tight")  # 单独保存原始自拍图像figure
+plt.show()  # 显示原始自拍图像figure
+plt.figure(figsize=(8,6))  # 创建matplotlib窗口用于显示最近邻插值结果
+plt.imshow(cv2.cvtColor(nearest_img,cv2.COLOR_BGR2RGB))  # 显示最近邻插值放大图像并将BGR格式转换为RGB格式
+plt.title(f"Nearest Neighbor Interpolation\nscale={scale_factor}, size={target_w}x{target_h}")  # 设置最近邻插值标题并显示放大倍数和目标尺寸
+plt.axis("off")  # 关闭坐标轴
+plt.tight_layout()  # 自动调整图像布局
+plt.savefig(result_dir/"第二题_最近邻插值单独figure.png",dpi=200,bbox_inches="tight")  # 单独保存最近邻插值figure
+plt.show()  # 显示最近邻插值figure
+plt.figure(figsize=(8,6))  # 创建matplotlib窗口用于显示双线性插值结果
+plt.imshow(cv2.cvtColor(bilinear_img,cv2.COLOR_BGR2RGB))  # 显示双线性插值放大图像并将BGR格式转换为RGB格式
+plt.title(f"Bilinear Interpolation\nscale={scale_factor}, size={target_w}x{target_h}")  # 设置双线性插值标题并显示放大倍数和目标尺寸
+plt.axis("off")  # 关闭坐标轴
+plt.tight_layout()  # 自动调整图像布局
+plt.savefig(result_dir/"第二题_双线性插值单独figure.png",dpi=200,bbox_inches="tight")  # 单独保存双线性插值figure
+plt.show()  # 显示双线性插值figure
+plt.figure(figsize=(9,6))  # 创建matplotlib窗口用于可视化重要参数
+plt.text(0.05,0.85,f"Scale Factor: {scale_factor}",fontsize=14)  # 显示图像放大倍数参数
+plt.text(0.05,0.68,f"Original Size: {original_w} x {original_h}",fontsize=14)  # 显示原始图像尺寸参数
+plt.text(0.05,0.51,f"Target Size: {target_w} x {target_h}",fontsize=14)  # 显示目标图像尺寸参数
+plt.text(0.05,0.34,"Nearest Neighbor: choose the closest source pixel",fontsize=12)  # 显示最近邻插值核心思想
+plt.text(0.05,0.20,"Bilinear: weighted average of four neighboring pixels",fontsize=12)  # 显示双线性插值核心思想
+plt.title("Question 2 Important Parameters")  # 设置重要参数说明图标题
+plt.axis("off")  # 关闭坐标轴
+plt.tight_layout()  # 自动调整图像布局
+plt.savefig(result_dir/"第二题_插值放大重要参数单独figure.png",dpi=200,bbox_inches="tight")  # 单独保存重要参数可视化图
+plt.show()  # 显示重要参数可视化图
+sys.stdout.write("第二题：原图、最近邻插值图、双线性插值图已分别单独保存\n")  # 使用sys模块输出单独保存完成提示
+sys.stdout.flush()  # 刷新标准输出缓冲区
+cv2.imshow("Original Self Image 2",original_text)  # 单独使用OpenCV窗口显示原始自拍图像
+cv2.waitKey(0)  # 等待键盘按键后继续显示下一张图
+cv2.imshow("Nearest Neighbor x1.5",nearest_text)  # 单独使用OpenCV窗口显示最近邻插值结果图像
+cv2.waitKey(0)  # 等待键盘按键后继续显示下一张图
+cv2.imshow("Bilinear Interpolation x1.5",bilinear_text)  # 单独使用OpenCV窗口显示双线性插值结果图像
+cv2.waitKey(0)  # 等待键盘按键
+cv2.destroyAllWindows()  # 关闭所有OpenCV显示窗口
+######################################################################
