@@ -51,6 +51,7 @@ result_dir=Path(assignment4_dir/"result")
 湖大logo_path=Path(resource_dir/"湖北大学logo")
 self_image_path=Path(resource_dir/"self-image.jpg")
 self_image2_path=Path(resource_dir/"self-image2.jpg")
+test_plate_path=Path(resource_dir/"license plate"/"test_plate.jpg")
 
 def cv_imread_chinese(path):  # 定义支持中文路径的图像读取函数
     img_array=np.fromfile(str(path),dtype=np.uint8)  # 使用numpy从文件路径中读取二进制数据
@@ -188,9 +189,6 @@ def bilinear_resize_custom(img,scale):  # 定义双线性插值放大函数
     dx=(x-x0).astype(np.float32)  # 计算x方向上的小数距离
     dx_3=dx[:,None]  # 将x方向权重扩展为二维，便于和三通道像素计算
     for y in range(dst_h):  # 遍历目标图像每一行，但每一行内部使用NumPy向量化计算
-        if y%100==0:  # 每处理100行输出一次进度
-            sys.stdout.write(f"双线性插值处理中：{y}/{dst_h}\n")  # 使用sys模块输出当前处理进度
-            sys.stdout.flush()  # 立即刷新输出缓冲区
         src_y=y/scale  # 根据目标图像y坐标反推原图中的浮点y坐标
         y0=int(np.floor(src_y))  # 获取上方像素点y坐标
         y1=min(y0+1,src_h-1)  # 获取下方像素点y坐标并防止越界
@@ -204,7 +202,6 @@ def bilinear_resize_custom(img,scale):  # 定义双线性插值放大函数
         bottom=p10*(1-dx_3)+p11*dx_3  # 计算下方两个像素在x方向上的线性插值
         value=top*(1-dy)+bottom*dy  # 计算y方向上的线性插值
         dst_img[y]=np.clip(value,0,255).astype(np.uint8)  # 将当前行插值结果写入目标图像
-    sys.stdout.write("双线性插值处理完成\n")  # 使用sys模块输出处理完成提示
     sys.stdout.flush()  # 立即刷新输出缓冲区
     return dst_img  # 返回双线性插值放大后的图像
 def put_text_blurviolet(img,text):  # 定义使用blurviolet颜色添加说明文字的辅助函数
@@ -221,8 +218,6 @@ resource_dir=assignment4_dir/"resource"  # 设置resource资源文件夹路径
 result_dir=assignment4_dir/"result"  # 设置result结果输出文件夹路径
 result_dir.mkdir(parents=True,exist_ok=True)  # 如果result文件夹不存在，则自动创建
 self_image2_path=Path(resource_dir/"self-image2.jpg")  # 设置第二张自拍照片路径
-sys.stdout.write("第二题：正在执行最近邻插值和双线性插值自定义放大程序\n")  # 调用sys模块输出程序运行提示信息
-sys.stdout.write(f"当前Python解释器路径：{sys.executable}\n")  # 调用sys模块输出当前Python解释器路径
 self_img2=cv_imread_chinese(self_image2_path)  # 使用支持中文路径的函数读取第二张自拍图像
 if self_img2 is None:  # 判断第二张自拍照片是否读取失败
     raise FileNotFoundError(f"未找到第二张自拍图片：{self_image2_path}")  # 如果读取失败，则抛出文件不存在错误
@@ -272,7 +267,6 @@ plt.axis("off")  # 关闭坐标轴
 plt.tight_layout()  # 自动调整图像布局
 plt.savefig(result_dir/"第二题_插值放大重要参数单独figure.png",dpi=200,bbox_inches="tight")  # 单独保存重要参数可视化图
 plt.show()  # 显示重要参数可视化图
-sys.stdout.write("第二题：原图、最近邻插值图、双线性插值图已分别单独保存\n")  # 使用sys模块输出单独保存完成提示
 sys.stdout.flush()  # 刷新标准输出缓冲区
 cv2.imshow("Original Self Image 2",original_text)  # 单独使用OpenCV窗口显示原始自拍图像
 cv2.waitKey(0)  # 等待键盘按键后继续显示下一张图
@@ -281,4 +275,138 @@ cv2.waitKey(0)  # 等待键盘按键后继续显示下一张图
 cv2.imshow("Bilinear Interpolation x1.5",bilinear_text)  # 单独使用OpenCV窗口显示双线性插值结果图像
 cv2.waitKey(0)  # 等待键盘按键
 cv2.destroyAllWindows()  # 关闭所有OpenCV显示窗口
+######################################################################
+
+###############################################
+#4
+# 自然彩色图像车牌提取的基本思路是：读取原图 → HSV颜色分割 → 形态学处理 → 轮廓筛选 → 透视矩阵拉伸校正 → 车牌裁剪 → 字符区域增强
+# 本题使用蓝色车牌的颜色特征进行车牌区域定位，再使用透视变换矩阵将倾斜车牌校正为标准矩形
+imgTestPlate = cv2.imread(str(test_plate_path))  # 使用 OpenCV 读取车牌原始彩色图像
+max_width = 900  # 设置图像最大宽度，避免原图过大导致处理速度慢
+h0, w0 = imgTestPlate.shape[:2]  # 获取原始图像高度和宽度
+if w0 > max_width:  # 判断图像宽度是否超过最大宽度
+    scale = max_width / w0  # 计算缩放比例
+    imgTestPlate = cv2.resize(imgTestPlate, (max_width, int(h0 * scale)))  # 按比例缩小图像，便于后续处理
+else:  # 如果图像宽度没有超过最大宽度
+    scale = 1.0  # 设置缩放比例为 1
+imgTestPlate_original = imgTestPlate.copy()  # 复制缩放后的原图，用于最终堆叠展示原图
+violet_color = (238, 130, 238)  # 设置文字颜色为 Violet，OpenCV 使用 BGR 顺序
+imgHSV = cv2.cvtColor(imgTestPlate, cv2.COLOR_BGR2HSV)  # 将 BGR 图像转换到 HSV 色彩空间，便于提取蓝色车牌区域
+lower_blue = np.array([90, 60, 40], dtype=np.uint8)  # 设置蓝色车牌 HSV 下限
+upper_blue = np.array([140, 255, 255], dtype=np.uint8)  # 设置蓝色车牌 HSV 上限
+mask_blue = cv2.inRange(imgHSV, lower_blue, upper_blue)  # 根据蓝色范围生成二值掩膜图
+kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (17, 5))  # 创建横向矩形结构元素，用于连接车牌区域
+kernel_open = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))  # 创建 5×5 矩形结构元素，用于去除小噪声
+mask_close = cv2.morphologyEx(mask_blue, cv2.MORPH_CLOSE, kernel_close, iterations=2)  # 对蓝色掩膜做闭运算，连接车牌内部断裂区域
+mask_open = cv2.morphologyEx(mask_close, cv2.MORPH_OPEN, kernel_open, iterations=1)  # 对闭运算结果做开运算，去除零散小噪声
+contours_info = cv2.findContours(mask_open, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)  # 查找二值图中的外部轮廓，兼容 OpenCV 3 和 OpenCV 4
+contours = contours_info[-2]  # 获取轮廓列表，OpenCV 3 和 OpenCV 4 都可用
+def order_points(pts):  # 定义四点排序函数，用于透视变换
+    rect = np.zeros((4, 2), dtype=np.float32)  # 创建 4×2 矩阵保存排序后的四个角点
+    s = pts.sum(axis=1)  # 计算每个点横纵坐标之和
+    diff = np.diff(pts, axis=1)  # 计算每个点纵坐标减横坐标的差值
+    rect[0] = pts[np.argmin(s)]  # 坐标和最小的点为左上角
+    rect[2] = pts[np.argmax(s)]  # 坐标和最大的点为右下角
+    rect[1] = pts[np.argmin(diff)]  # 差值最小的点为右上角
+    rect[3] = pts[np.argmax(diff)]  # 差值最大的点为左下角
+    return rect  # 返回排序后的四个角点
+best_box = None  # 初始化最佳车牌四角点
+best_score = 0  # 初始化最佳车牌候选区域得分
+for cnt in contours:  # 遍历所有候选轮廓
+    area = cv2.contourArea(cnt)  # 计算当前轮廓面积
+    if area < 1000:  # 如果轮廓面积过小，通常不是车牌
+        continue  # 跳过面积过小的轮廓
+    peri = cv2.arcLength(cnt, True)  # 计算当前轮廓周长
+    approx = cv2.approxPolyDP(cnt, 0.03 * peri, True)  # 对轮廓进行多边形近似，尽量提取车牌真实四个角点
+    rect = cv2.minAreaRect(cnt)  # 获取当前轮廓的最小外接旋转矩形，作为四角点提取失败时的备用方法
+    width = rect[1][0]  # 获取旋转矩形宽度
+    height = rect[1][1]  # 获取旋转矩形高度
+    if width == 0 or height == 0:  # 判断矩形宽高是否有效
+        continue  # 跳过无效矩形
+    if len(approx) == 4:  # 如果多边形近似刚好得到四个点
+        box = approx.reshape(4, 2).astype(np.float32)  # 使用真实近似四边形作为车牌角点
+        method_weight = 1.3  # 四边形角点比外接矩形更适合透视变换，因此提高候选得分
+    else:  # 如果没有得到四个角点
+        box = cv2.boxPoints(rect).astype(np.float32)  # 使用最小外接旋转矩形的四个角点作为备用
+        method_weight = 1.0  # 备用角点得分权重保持正常
+    ordered_box = order_points(box)  # 对候选四角点进行左上、右上、右下、左下排序
+    tl, tr, br, bl = ordered_box  # 分别取出排序后的四个角点
+    box_width = (np.linalg.norm(tr - tl) + np.linalg.norm(br - bl)) / 2  # 计算候选区域平均宽度
+    box_height = (np.linalg.norm(bl - tl) + np.linalg.norm(br - tr)) / 2  # 计算候选区域平均高度
+    if box_width == 0 or box_height == 0:  # 判断候选区域宽高是否有效
+        continue  # 跳过无效候选区域
+    ratio = max(box_width, box_height) / min(box_width, box_height)  # 计算候选区域长短边比例
+    if ratio < 2.0 or ratio > 6.5:  # 根据车牌扁长矩形特点筛选候选区域
+        continue  # 跳过比例不合理的区域
+    rect_area = width * height  # 计算最小外接旋转矩形面积
+    fill_ratio = area / rect_area if rect_area > 0 else 0  # 计算轮廓面积与矩形面积的比例
+    score = area * fill_ratio * method_weight  # 综合面积、填充比例和角点质量计算候选区域得分
+    if score > best_score:  # 判断当前候选区域是否优于之前结果
+        best_score = score  # 更新最佳候选得分
+        best_box = ordered_box  # 更新最佳车牌四角点
+if best_box is None:  # 判断是否成功检测到车牌候选区域
+    raise RuntimeError("未检测到车牌区域，请检查图片是否为蓝色车牌，或调整 HSV 阈值范围")  # 如果没有检测到车牌，提示调整阈值
+plate_rect = best_box.astype(np.float32)  # 将最佳车牌四角点转换为 float32 类型，便于计算透视变换矩阵
+draw_box = plate_rect.astype(np.int32)  # 将车牌四角点转换为整数，便于绘制轮廓
+imgTestPlate_box = imgTestPlate.copy()  # 复制缩放后的原图，便于绘制车牌定位结果
+cv2.drawContours(imgTestPlate_box, [draw_box], -1, (0, 255, 0), 3)  # 在原图上绘制检测到的车牌四边形区域
+cv2.putText(imgTestPlate_box, "License Plate ROI", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.2, violet_color, 3)  # 在图像上标注车牌定位区域
+plate_std_width = 440  # 设置透视变换后车牌标准宽度
+plate_std_height = 140  # 设置透视变换后车牌标准高度
+dst_pts = np.array([[0, 0], [plate_std_width - 1, 0], [plate_std_width - 1, plate_std_height - 1], [0, plate_std_height - 1]], dtype=np.float32)  # 设置标准矩形目标四角点
+M = cv2.getPerspectiveTransform(plate_rect, dst_pts)  # 根据原车牌四角点和目标矩形四角点计算 3×3 透视变换矩阵
+sys.stdout.write("😘😘😘|透视变换矩阵 M：\n") # 输出提示信息
+print(M)  # 打印 3×3 透视变换矩阵，证明这里进行了矩阵拉伸校正
+plate_warp = cv2.warpPerspective(imgTestPlate, M, (plate_std_width, plate_std_height))  # 使用透视变换矩阵将倾斜车牌拉伸校正为 440×140 标准矩形
+plate_hsv = cv2.cvtColor(plate_warp, cv2.COLOR_BGR2HSV)  # 将校正后的车牌图转换到 HSV 色彩空间
+plate_mask = cv2.inRange(plate_hsv, lower_blue, upper_blue)  # 再次提取校正车牌中的蓝色区域
+plate_mask = cv2.morphologyEx(plate_mask, cv2.MORPH_CLOSE, kernel_open, iterations=1)  # 对校正车牌掩膜做闭运算，减少内部空洞
+plate_contours_info = cv2.findContours(plate_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)  # 查找校正车牌图中的蓝色区域轮廓，兼容 OpenCV 3 和 OpenCV 4
+plate_contours = plate_contours_info[-2]  # 获取校正车牌图中的轮廓列表
+if len(plate_contours) > 0:  # 判断校正车牌中是否还能找到蓝色主体区域
+    plate_main = max(plate_contours, key=cv2.contourArea)  # 选择面积最大的蓝色区域作为车牌主体
+    x, y, w, h = cv2.boundingRect(plate_main)  # 获取车牌主体的外接矩形
+    pad = 5  # 设置裁剪时的边缘扩展像素，避免切掉车牌边缘
+    x1 = max(x - pad, 0)  # 计算裁剪区域左边界
+    y1 = max(y - pad, 0)  # 计算裁剪区域上边界
+    x2 = min(x + w + pad, plate_warp.shape[1])  # 计算裁剪区域右边界
+    y2 = min(y + h + pad, plate_warp.shape[0])  # 计算裁剪区域下边界
+    plate_crop = plate_warp[y1:y2, x1:x2]  # 根据蓝色主体区域精细裁剪车牌，去除非车牌部分
+else:  # 如果没有找到蓝色主体区域
+    plate_crop = plate_warp.copy()  # 保留透视校正后的车牌图作为裁剪结果
+if plate_crop.size == 0:  # 判断裁剪图像是否为空
+    plate_crop = plate_warp.copy()  # 如果裁剪失败，则使用透视校正后的车牌图作为结果
+plate_crop = cv2.resize(plate_crop, (440, 140))  # 将车牌区域统一拉伸到 440×140，便于后续字符处理
+margin_x = int(plate_crop.shape[1] * 0.04)  # 计算左右边框裁剪宽度，用于去除车牌边框干扰
+margin_y = int(plate_crop.shape[0] * 0.08)  # 计算上下边框裁剪高度，用于去除车牌边框干扰
+plate_character_area = plate_crop[margin_y:plate_crop.shape[0] - margin_y, margin_x:plate_crop.shape[1] - margin_x]  # 裁剪出车牌中间字符区域
+plate_gray = cv2.cvtColor(plate_character_area, cv2.COLOR_BGR2GRAY)  # 将字符区域转换为灰度图
+plate_gray = cv2.equalizeHist(plate_gray)  # 对灰度图进行直方图均衡化，增强字符与背景对比度
+plate_blur = cv2.GaussianBlur(plate_gray, (3, 3), 0)  # 对灰度图进行轻微高斯滤波，减少噪声
+_, plate_binary = cv2.threshold(plate_blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)  # 使用 Otsu 自动阈值法得到字符区域二值图
+cv2.imwrite(str(result_dir / "plate_01_original.jpg"), imgTestPlate_original)  # 保存原始车牌图
+cv2.imwrite(str(result_dir / "plate_02_blue_mask.jpg"), mask_blue)  # 保存蓝色车牌掩膜图
+cv2.imwrite(str(result_dir / "plate_03_detect_box.jpg"), imgTestPlate_box)  # 保存车牌定位框结果图
+cv2.imwrite(str(result_dir / "plate_04_matrix_warp.jpg"), plate_warp)  # 保存透视矩阵校正后的车牌图
+cv2.imwrite(str(result_dir / "plate_05_crop.jpg"), plate_crop)  # 保存精细裁剪后的车牌图
+cv2.imwrite(str(result_dir / "plate_06_character_binary.jpg"), plate_binary)  # 保存字符区域二值图
+imgTestPlate_original_text = imgTestPlate_original.copy()  # 复制原图，便于添加文字
+mask_blue_text = cv2.cvtColor(mask_blue, cv2.COLOR_GRAY2BGR)  # 将蓝色掩膜图转换为三通道图像，便于添加文字
+plate_warp_text = plate_warp.copy()  # 复制透视校正图，便于添加文字
+plate_crop_text = plate_crop.copy()  # 复制裁剪结果图，便于添加文字
+plate_binary_text = cv2.cvtColor(plate_binary, cv2.COLOR_GRAY2BGR)  # 将二值图转换为三通道图像，便于添加文字
+cv2.putText(imgTestPlate_original_text, "Original", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, violet_color, 3)  # 在原图上添加说明文字
+cv2.putText(mask_blue_text, "HSV Blue Mask", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1.0, violet_color, 3)  # 在蓝色掩膜图上添加说明文字
+cv2.putText(plate_warp_text, "Matrix Warp 440x140", (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.9, violet_color, 3)  # 在透视矩阵拉伸图上添加说明文字
+cv2.putText(plate_crop_text, "Final Plate Crop", (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.9, violet_color, 3)  # 在车牌裁剪图上添加说明文字
+cv2.putText(plate_binary_text, "Character Binary", (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.9, violet_color, 3)  # 在字符二值图上添加说明文字
+plate_stack = stackImages(0.45, [[imgTestPlate_original_text, imgTestPlate_box, mask_blue_text], [plate_warp_text, plate_crop_text, plate_binary_text]])  # 将必要处理结果按 2 行 3 列堆叠显示
+cv2.imwrite(str(result_dir / "plate_process_stack.jpg"), plate_stack)  # 保存车牌处理流程堆叠图
+cv2.imshow("plate_process_stack", plate_stack)  # 显示车牌定位、矩阵拉伸校正、裁剪和字符二值化流程
+cv2.waitKey(0)  # 等待键盘输入
+cv2.destroyAllWindows()  # 关闭所有 OpenCV 窗口
+# 实验结果分析：HSV 蓝色分割可以从自然彩色图像中提取蓝色车牌候选区域
+# 实验结果分析：轮廓筛选可以根据面积、宽高比和填充比例定位车牌区域
+# 实验结果分析：透视变换矩阵 M 可以把倾斜车牌拉伸校正为 440×140 的标准矩形图像
+# 实验结果分析：精细裁剪可以去除车牌周围的非车牌背景区域，字符二值化可以增强车牌字符与背景的对比度
 ######################################################################
