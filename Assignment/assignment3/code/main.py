@@ -1,16 +1,16 @@
-import os
-import numpy as np
-from matplotlib import pyplot as plt
-from pathlib import Path
-import cv2
+import os  # 导入os模块，用于获取文件路径和拼接目录
+import numpy as np  # 导入NumPy库，用于数组和矩阵运算
+from matplotlib import pyplot as plt  # 导入matplotlib的pyplot模块，用于图像显示和结果可视化
+from pathlib import Path  # 导入Path类，用于更方便地处理文件和文件夹路径
+import cv2  # 导入OpenCV库，用于图像读取、显示和处理
 
-main_path=os.path.abspath(__file__)
-code_dir=os.path.dirname(main_path)
-assignment3_dir=os.path.abspath(os.path.join(code_dir,".."))
-resource_dir=Path(assignment3_dir)/"resource"
-result_dir=Path(assignment3_dir)/"result"
-suomi_path=resource_dir/"suomi.jpg"
-nailong_path=Path(os.path.abspath(os.path.join(resource_dir,'nailong1.jpg')))
+main_path=os.path.abspath(__file__)  # 获取当前Python文件的绝对路径
+code_dir=os.path.dirname(main_path)  # 获取当前Python文件所在的code文件夹路径
+assignment3_dir=os.path.abspath(os.path.join(code_dir,".."))  # 获取code文件夹的上一级目录，即assignment3文件夹路径
+resource_dir=Path(assignment3_dir)/"resource"  # 拼接得到resource资源文件夹路径
+result_dir=Path(assignment3_dir)/"result"  # 拼接得到result实验结果保存文件夹路径
+suomi_path=resource_dir/"suomi.jpg"  # 拼接得到suomi.jpg图像文件路径
+nailong_path=Path(os.path.abspath(os.path.join(resource_dir,'nailong1.jpg')))  # 拼接并转换得到nailong1.jpg图像文件的绝对路径
 
 def stackImages(scale,imgArray):  # 定义图像拼接函数，scale 为缩放比例，imgArray 为待拼接图像数组
     rowsAvailable=isinstance(imgArray[0],list)  # 判断输入图像数组是否为二维列表
