@@ -1,14 +1,58 @@
-import cv2  # 导入OpenCV库，用于图像读取、显示、保存和处理
-import numpy as np  # 导入NumPy库，用于数组和矩阵运算
-from pathlib import Path  # 导入Path类，用于跨平台拼接文件路径
+import cv2 # 导入OpenCV库，用于图像读取、显示、保存和处理
+import numpy as np # 导入NumPy库，用于数组和矩阵运算
+from pathlib import Path # 导入Path类，用于跨平台拼接文件路径
+import os # 导入os模块，用于获取文件路径、拼接路径和处理系统路径
+from matplotlib import pyplot as plt # 导入matplotlib中的pyplot模块，用于图像可视化显示
+import sys # 导入sys模块，用于获取Python解释器信息和输出运行提示
 
-path_main = Path(__file__).resolve().parents[1]  # 获取assignment1文件夹的绝对路径
-resource_dir = path_main / "resource"  # 设置resource资源文件夹路径
-result_dir = path_main / "result"  # 设置result结果文件夹路径
-pics_dir = result_dir / "pics"  # 设置用于代替F盘pics文件夹的路径
-ppics_dir = pics_dir / "ppics"  # 设置pics文件夹下ppics子目录的路径
-pics_dir.mkdir(parents=True, exist_ok=True)  # 如果result/pics文件夹不存在，则自动创建
-ppics_dir.mkdir(parents=True, exist_ok=True)  # 如果result/pics/ppics文件夹不存在，则自动创建
+path_main = Path(os.path.abspath(__file__)).resolve().parents[1] # 使用os获取当前文件绝对路径，再转换为Path对象，并获取assignment1文件夹路径
+resource_dir = path_main / "resource" # 使用Path拼接resource资源文件夹路径
+result_dir = Path(os.path.join(str(path_main), "result")) # 使用os.path.join拼接result结果文件夹路径，并转换为Path对象
+an94_path = Path(resource_dir / 'an94.jpg') # 使用Path拼接an94.jpg图像文件路径
+np1_path = Path(resource_dir / 'np1.jpg') # 使用Path拼接np1.jpg图像文件路径
+pics_dir = Path(os.path.join(str(result_dir), "pics")) # 使用os.path.join拼接pics文件夹路径，并转换为Path对象
+ppics_dir = pics_dir / "ppics" # 使用Path拼接pics文件夹下ppics子目录路径
+SHE_path = Path(resource_dir / 'SHE.jpg') # 使用Path拼接SHE.jpg图像文件路径
+
+def stackImages(scale,imgArray):  # 定义图像拼接函数，scale 为缩放比例，imgArray 为待拼接图像数组
+    rowsAvailable=isinstance(imgArray[0],list)  # 判断输入图像数组是否为二维列表
+    if rowsAvailable:
+        width=imgArray[0][0].shape[1]  # 获取基准图像宽度
+        height=imgArray[0][0].shape[0]  # 获取基准图像高度
+        rows=len(imgArray)  # 获取图像拼接的行数
+        cols= max(len(row) for row in imgArray)  # 获取图像拼接的最大列数
+        imgBlack = np.zeros_like(imgArray[0][0])  # 创建与基准图像大小相同的黑色占位图
+        for x in range(0,rows):
+            while len(imgArray[x]) < cols:  # 当当前行图像数量不足最大列数时继续补齐
+                imgArray[x].append(imgBlack.copy())  # 用黑色图像补齐当前行列数
+            for y in range(0,cols):  # 遍历当前行中的每一列图像
+                if imgArray[x][y].shape[:2]==imgArray[0][0].shape[:2]:  # 判断当前图像尺寸是否与基准图像一致
+                    imgArray[x][y]=cv2.resize(imgArray[x][y],(0,0),None,scale,scale)  # 按比例缩放与基准尺寸一致的图像
+                else:  # 当前图像尺寸与基准图像不一致时执行统一尺寸处理
+                    imgArray[x][y]=cv2.resize(imgArray[x][y],(imgArray[0][0].shape[1],imgArray[0][0].shape[0]),None,scale,scale)  # 先统一到基准尺寸再按比例缩放
+                if len(imgArray[x][y].shape)==2:
+                    imgArray[x][y]=cv2.cvtColor(imgArray[x][y],cv2.COLOR_GRAY2BGR)  # 将灰度图转换为三通道 BGR 图像
+        imgBlack=np.zeros((height,width,3),np.uint8)  # 创建三通道黑色图像
+        hor=[imgBlack]*rows  # 初始化每一行横向拼接后的图像列表
+        for x in range(0,rows):
+            hor[x]=np.hstack(imgArray[x])  # 对当前行图像进行横向拼接
+        ver=np.vstack(hor)  # 将各行结果纵向拼接成最终图像
+    else:
+        width=imgArray[0].shape[1]  # 获取一维图像列表中基准图像宽度
+        height=imgArray[0].shape[0]  # 获取一维图像列表中基准图像高度
+        cols=len(imgArray)  # 获取一维图像列表的图像数量
+
+        for x in range(0,cols):  # 遍历一维图像列表中的每一张图像
+            if imgArray[x].shape[:2]==imgArray[0].shape[:2]:  # 判断当前图像尺寸是否与基准图像一致
+                imgArray[x]=cv2.resize(imgArray[x],(0,0),None,scale,scale)  # 按比例缩放与基准尺寸一致的图像
+            else:  # 当前图像尺寸与基准图像不一致时执行统一尺寸处理
+                imgArray[x]=cv2.resize(imgArray[x],(imgArray[0].shape[1],imgArray[0].shape[0]),None,scale,scale)  # 先统一到基准尺寸再按比例缩放
+            if len(imgArray[x].shape)==2:
+                imgArray[x]=cv2.cvtColor(imgArray[x],cv2.COLOR_GRAY2BGR)  # 将灰度图转换为三通道 BGR 图像
+        hor=np.hstack(imgArray)  # 将一维列表中的图像横向拼接
+        ver=hor  # 一维拼接时最终结果即为横向拼接结果
+    return ver  # 返回拼接后的图像
+
 
 ##########################
 # 1
@@ -71,29 +115,23 @@ print("图像数据类型：", dtype)  # 输出图像数据类型
 # 6
 imgScale = cv2.resize(img, (200, 200))  # 将原图缩放到200×200大小
 imgCv2Add = cv2.add(imgScale, imgScale)  # 使用OpenCV加法对图像进行相加
-cv2.imshow("c2", imgCv2Add)  # 显示OpenCV加法得到的图像
 imgNpAdd = np.array(imgScale + imgScale)  # 使用NumPy数组加法对图像进行相加
-cv2.imshow("np", imgNpAdd)  # 显示NumPy加法得到的图像
-cv2.waitKey(0)  # 等待键盘按键后继续执行程序
-
 imgCv2diff = cv2.subtract(imgCv2Add, imgScale)  # 使用OpenCV减法计算图像差值
 imgNpdiff = np.array(imgScale - imgNpAdd)  # 使用NumPy数组减法计算图像差值
-cv2.imshow("c", imgCv2diff)  # 显示OpenCV减法结果
-cv2.imshow("n", imgNpdiff)  # 显示NumPy减法结果
-cv2.waitKey(0)  # 等待键盘按键后继续执行程序
-
 imgGray = cv2.cvtColor(imgScale, cv2.COLOR_BGR2GRAY)  # 将缩放后的图像转换为灰度图
 imgCv2mp = cv2.multiply(imgScale, imgScale)  # 使用OpenCV乘法对图像进行逐像素相乘
 imgNpdot = np.dot(imgGray, imgGray)  # 使用NumPy的dot()函数进行矩阵乘法
-cv2.imshow("c", imgCv2mp)  # 显示OpenCV乘法结果
-cv2.imshow("dot", imgNpdot)  # 显示NumPy矩阵乘法结果
-cv2.waitKey(0)  # 等待键盘按键后继续执行程序
-
 den = (imgScale * 0.01).astype(np.uint8)  # 构造除法运算中的除数图像
 den[den == 0] = 1  # 将除数中的0改为1，避免除以0
 imgdivide = cv2.divide(imgScale, den)  # 使用cv2.divide()函数实现图像除法运算
+cv2.imshow("c+", imgCv2Add)  # 显示OpenCV加法得到的图像
+cv2.imshow("n+", imgNpAdd)  # 显示NumPy加法得到的图像
+cv2.imshow("c-", imgCv2diff)  # 显示OpenCV减法结果
+cv2.imshow("n-", imgNpdiff)  # 显示NumPy减法结果
+cv2.imshow("c*", imgCv2mp)  # 显示OpenCV乘法结果
+cv2.imshow("dot", imgNpdot)  # 显示NumPy矩阵乘法结果
 cv2.imshow("div", imgdivide)  # 显示图像除法结果
-cv2.waitKey(0)  # 等待键盘按键后继续执行程序
+cv2.waitKey()  # 等待键盘按键后继续执行程序
 ###############################################
 
 ###################################################
@@ -115,11 +153,18 @@ img_and = cv2.bitwise_and(img8, img8, mask=mask)  # 使用按位与运算保留�
 mask3 = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)  # 将单通道掩膜转换为三通道掩膜
 img_or = cv2.bitwise_or(img8, mask3)  # 使用按位或运算去掉掩膜内的图像效果
 img_xor = cv2.bitwise_xor(img8, mask3)  # 使用按位异或运算处理图像
-cv2.imshow("original", img8)  # 显示原始图像
-cv2.imshow("mask", mask)  # 显示掩膜图像
-cv2.imshow("bitwise_and_keep_mask", img_and)  # 显示按位与结果
-cv2.imshow("bitwise_or_remove_mask", img_or)  # 显示按位或结果
-cv2.imshow("bitwise_xor", img_xor)  # 显示按位异或结果
+# 用黑色描边 + 黄色文字
+def add_label(image, text):  # 定义文字标记函数，用于给每张结果图像添加说明文字
+    cv2.putText(image, text, (8, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 0), 4, cv2.LINE_AA)  # 先绘制黑色粗文字作为描边，增强文字对比度
+    cv2.putText(image, text, (8, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 255, 255), 2, cv2.LINE_AA)  # 再绘制黄色文字，使文字在不同背景上更清晰
+    return image  # 返回已经添加文字标记的图像
+img8 = add_label(img8, "Original")  # 给原图添加Original标记
+mask = add_label(mask, "Mask")  # 给掩膜图添加Mask标记
+img_and = add_label(img_and, "AND: Keep Mask Area")  # 给按位与结果图添加保留掩膜区域的标记
+img_or = add_label(img_or, "OR: Remove Mask Area")  # 给按位或结果图添加去掉掩膜区域的标记
+img_xor = add_label(img_xor, "XOR")  # 给按位异或结果图添加XOR标记
+imgRes = stackImages(0.7, [[img8, mask, img_and], [img_or, img_xor]])  # 将原图、掩膜图和三种按位运算结果图拼接成一张展示图
+cv2.imshow('s', imgRes)  # 显示拼接后的结果图像
 cv2.waitKey(0)  # 等待键盘按键后继续执行程序
 #################################################################################
 
@@ -179,14 +224,14 @@ if not img_path.exists():  # 判断自拍照片是否还没有放到pics文件�
     cv2.imwrite(str(img_path), imgNai)  # 如果没有自拍照片，则使用已读取的自拍图像生成self.jpg保证程序可执行
 img12 = cv2.imread(str(img_path))  # 读取自拍图像
 if img12 is None:  # 判断图像是否读取失败
-    print(f"自拍图像读取失败，请检查路径：{img_path}")  # 输出错误提示和自拍图像路径
+    sys.stdout.write(f"自拍图像读取失败，请检查路径：{img_path}\n")  # 输出错误提示和自拍图像路径
 else:  # 图像读取成功后执行
-    print("原图属性：")  # 输出原图属性标题
-    print("原图尺寸：", img12.shape)  # 输出原图尺寸，包括高度、宽度和通道数
-    print("原图高度：", img12.shape[0])  # 输出原图高度
-    print("原图宽度：", img12.shape[1])  # 输出原图宽度
-    print("原图通道数：", img12.shape[2])  # 输出原图通道数
-    print("原图数据类型：", img12.dtype)  # 输出原图数据类型
+    sys.stdout.write("图像属性：\n")  # 输出图像属性标题
+    sys.stdout.write(f"图像尺寸：{img12.shape}\n")  # 输出图像尺寸，包括高度、宽度和通道数
+    sys.stdout.write(f"图像高度：{img12.shape[0]}\n")  # 输出图像高度
+    sys.stdout.write(f"图像宽度：{img12.shape[1]}\n")  # 输出图像宽度
+    sys.stdout.write(f"图像通道数：{img12.shape[2]}\n")  # 输出图像通道数
+    sys.stdout.write(f"图像数据类型：{img12.dtype}\n")  # 输出图像数据类型
     h, w = img12.shape[:2]  # 获取原图高度和宽度
     img_crop = img12[:, :w // 2]  # 将原图像规则剪裁一半，这里保留左半部分
     save_dir = ppics_dir  # 设置剪裁后图像保存目录为assignment1/result/pics/ppics
@@ -194,14 +239,14 @@ else:  # 图像读取成功后执行
     save_path = save_dir / "p_self.jpg"  # 设置剪裁后图像保存路径
     cv2.imwrite(str(save_path), img_crop)  # 将剪裁后的图像保存到ppics子目录中
     img_crop_read = cv2.imread(str(save_path))  # 重新读取保存后的剪裁图像
-    print("剪裁后图像属性：")  # 输出剪裁后图像属性标题
-    print("剪裁后图像尺寸：", img_crop_read.shape)  # 输出剪裁后图像尺寸
-    print("剪裁后图像高度：", img_crop_read.shape[0])  # 输出剪裁后图像高度
-    print("剪裁后图像宽度：", img_crop_read.shape[1])  # 输出剪裁后图像宽度
-    print("剪裁后图像通道数：", img_crop_read.shape[2])  # 输出剪裁后图像通道数
-    print("剪裁后图像数据类型：", img_crop_read.dtype)  # 输出剪裁后图像数据类型
+    sys.stdout.write("图像属性：\n")  # 输出图像属性标题
+    sys.stdout.write(f"图像尺寸：{img_crop_read.shape}\n")  # 输出图像尺寸
+    sys.stdout.write(f"图像高度：{img_crop_read.shape[0]}\n")  # 输出图像高度
+    sys.stdout.write(f"图像宽度：{img_crop_read.shape[1]}\n")  # 输出图像宽度
+    sys.stdout.write(f"图像通道数：{img_crop_read.shape[2]}\n")  # 输出图像通道数
+    sys.stdout.write(f"图像数据类型：{img_crop_read.dtype}\n")  # 输出图像数据类型
     cv2.imshow("p_38", img_crop_read)  # 在名为p_38的窗口中显示剪裁后的图像
-    cv2.waitKey(0)  # 等待键盘按键后继续执行程序
+    cv2.waitKey()  # 等待键盘按键后继续执行程序
     cv2.destroyAllWindows()  # 关闭所有OpenCV窗口
 ############################################################################################
 
