@@ -425,16 +425,13 @@ for plate_path in plate_paths:  # 循环处理车牌文件夹中的每一张图�
     cv2.waitKey(0)  # 等待键盘输入后继续处理下一张图片
     cv2.destroyAllWindows()  # 关闭当前OpenCV显示窗口
 if len(all_detect_results) > 0:  # 判断是否至少成功处理了一张车牌图像
-    small_results = []  # 创建列表，用于保存缩放后的总览图
     for i, img_show in enumerate(all_detect_results):  # 遍历每一张车牌处理流程图
-        small = cv2.resize(img_show, (900, 300))  # 将每张流程图统一缩放，便于总览显示
-        cv2.putText(small, f"Plate {i + 1}", (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (238, 130, 238), 3)  # 在总览图中添加车牌序号
-        small_results.append(small)  # 将缩放后的流程图加入总览列表
-    overview = np.vstack(small_results)  # 将所有处理结果纵向拼接成总览图
-    cv2.imwrite(str(plate_result_dir / "all_plate_process_overview.jpg"), overview)  # 保存所有车牌处理结果总览图
-    cv2.imshow("all_plate_process_overview", overview)  # 显示所有车牌处理结果总览图
-    cv2.waitKey(0)  # 等待键盘输入
-    cv2.destroyAllWindows()  # 关闭所有OpenCV窗口
+        single_overview = cv2.resize(img_show, (900, 300))  # 将当前车牌流程图统一缩放，便于单独显示和截图
+        cv2.putText(single_overview, f"Plate {i + 1}", (20, 45), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (238, 130, 238), 3)  # 在当前车牌图中添加车牌序号
+        cv2.imwrite(str(plate_result_dir / f"plate_{i + 1}_process_overview.jpg"), single_overview)  # 单独保存当前车牌处理结果图
+        cv2.imshow(f"plate_{i + 1}_process_overview", single_overview)  # 单独显示当前车牌处理结果图
+        cv2.waitKey()  # 等待键盘输入后继续显示下一张车牌结果
+        cv2.destroyAllWindows()  # 关闭当前OpenCV显示窗口
 # 实验结果分析：使用循环读取license plate文件夹，可以一次性处理plate1、plate2等多张车牌图像，避免一张图写一个路径
 # 实验结果分析：HSV蓝色分割可以从自然彩色图像中提取蓝色车牌候选区域
 # 实验结果分析：轮廓筛选可以根据面积、长宽比和填充比例定位车牌区域
